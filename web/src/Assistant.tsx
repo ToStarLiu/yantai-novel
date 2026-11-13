@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Sparkles,
@@ -42,6 +42,7 @@ import {
   busy,
   statusLabel,
   type Chapter,
+  type Session,
   type Detail,
   type Run,
   type Issue,
@@ -57,8 +58,15 @@ import {
   type Hunk,
   canApplyCandidate,
 } from "./revisions";
-import Copilot from "./Copilot";
+import Copilot, { type CandidateTarget } from "./Copilot";
 import type { WritingSkillList } from "./WritingSkills";
+import {
+  TaskMemoryControl,
+  TaskMemoryExclusion,
+  TaskMemoryUsage,
+  useTaskAuthorMemory,
+} from "./TaskAuthorMemory";
+import { authorMemoryTaskExclusion } from "./taskMemoryPolicy";
 import "./workspaceAssistant.css";
 
 type Props = {
@@ -101,6 +109,23 @@ export default function Assistant(props: Props) {
   const { chapter, detail, notify } = props;
   const [tab, setTab] = useState<Tab>("assistant");
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [candidateRequest, setCandidateRequest] = useState<{
+    id: number;
+    text: string;
+    target: CandidateTarget;
+  }>();
+  const continueCandidate = (candidate: Run) => {
+    setCandidateRequest({
+      id: Date.now(),
+      text: "请继续打磨这份候选，保留已满意的修改，接下来按我的要求调整。",
+      target: {
+        runId: candidate.id,
+        title: taskName[candidate.type] || "写作候选",
+      },
+    });
+    setTab("assistant");
+    setToolsOpen(false);
+  };
   const [contextOpen, setContextOpen] = useState(false);
   const [copilotActive, setCopilotActive] = useState(false);
   useEffect(() => {
@@ -128,6 +153,7 @@ export default function Assistant(props: Props) {
       skill.enabled &&
       (!skill.taskTypes.length || skill.taskTypes.includes("copilot")),
   );
+  const taskMemory = useTaskAuthorMemory(detail.project.id);
   const [instructions, setInstructions] = useState("");
   const [starting, setStarting] = useState(false);
   const [operation, setOperation] = useState("expand");
@@ -144,8 +170,17 @@ export default function Assistant(props: Props) {
   const agentOptions = useQuery({
     queryKey: ["agents"],
     queryFn: () =>
-      api<{ id: string; name: string; taskType: string }[]>("/agents"),
+      api<{ id: string; name: string; taskType: string; tools: string[] }[]>(
+        "/agents",
+      ),
   });
+  const selectedAgent = agentOptions.data?.find(
+    (agent) => agent.id === agentID,
+  );
+  const agentMemoryReason =
+    selectedAgent && !selectedAgent.tools?.includes("query-memory")
+      ? "所选创作角色未获记忆读取权限，本次不会加载作者偏好。"
+      : undefined;
   const promptOptions = useQuery({
     queryKey: ["prompts"],
     queryFn: () =>
@@ -196,6 +231,8 @@ export default function Assistant(props: Props) {
       const r = await api<Run>(`/chapters/${chapter.id}/runs`, "POST", {
         intentId: id(),
         taskType: type,
+        ignoreMemory:
+          taskMemory.ignoreMemory || !!authorMemoryTaskExclusion(type),
         inputRevisionId: revision,
         instructions,
         selection: props.selection,
@@ -339,6 +376,7 @@ export default function Assistant(props: Props) {
               key={detail.project.id}
               {...props}
               onBusyChange={setCopilotActive}
+              candidateRequest={candidateRequest}
             />
           </div>
           <details
@@ -384,6 +422,14 @@ export default function Assistant(props: Props) {
                   placeholder="例如：收紧节奏，用动作表现不安，停在发现线索时…"
                 />
               </label>
+              <TaskMemoryControl
+                preference={taskMemory}
+                projectId={detail.project.id}
+                purpose="单次写作"
+                excludedReason={agentMemoryReason}
+                disabled={starting}
+                note="起草、定向修订和选段改写参考作者偏好；一致性审稿和交接检查不加载偏好。"
+              />
               <div className="ai-actions">
                 <button
                   className="ai-primary-action"
@@ -540,6 +586,7 @@ export default function Assistant(props: Props) {
                 <label>
                   Agent 职责
                   <select
+                    aria-label="Agent 职责"
                     value={agentID}
                     onChange={(e) => setAgentID(e.target.value)}
                   >
@@ -612,6 +659,7 @@ export default function Assistant(props: Props) {
                   run={run}
                   currentRevisionId={props.currentRevisionId}
                   currentText={props.currentText}
+                  onContinue={continueCandidate}
                   onApply={props.onApply}
                   notify={notify}
                   onSelectIssues={setSelectedIssues}
@@ -633,6 +681,16 @@ export default function Assistant(props: Props) {
             notify={notify}
             onGenerate={() => void start("planning")}
             starting={starting}
+            memoryControl={
+              <TaskMemoryControl
+                preference={taskMemory}
+                projectId={detail.project.id}
+                purpose="章纲规划"
+                excludedReason={agentMemoryReason}
+                taskType="planning"
+                disabled={starting}
+              />
+            }
             plans={ownRuns.filter((r) => r.type === "planning")}
           />
         )}
@@ -677,6 +735,7 @@ export default function Assistant(props: Props) {
                 key={r.id}
                 run={r}
                 compact={r.id !== selectedRun}
+                onContinue={continueCandidate}
                 currentRevisionId={props.currentRevisionId}
                 currentText={props.currentText}
                 onApply={props.onApply}
@@ -732,6 +791,7 @@ function Blueprint({
   onGenerate,
   starting,
   plans,
+  memoryControl,
 }: {
   chapter: Chapter;
   onSaved: () => void;
@@ -739,6 +799,7 @@ function Blueprint({
   onGenerate: () => void;
   starting: boolean;
   plans: Run[];
+  memoryControl: ReactNode;
 }) {
   const [outline, setOutline] = useState(chapter.blueprint || ""),
     [saving, setSaving] = useState(false);
@@ -766,6 +827,7 @@ function Blueprint({
           }
         />
       </label>
+      {memoryControl}
       <div className="row">
         <button
           className="button primary full"
@@ -808,8 +870,15 @@ function Blueprint({
               AI 章纲候选 · {dateTime(plan.createdAt)}
             </span>
             <pre className="plan-text">{plan.output.text}</pre>
+            <TaskMemoryUsage run={plan} />
+            {plan.stale && (
+              <p className="warning-box">
+                输入或作者记忆已变化，这份章纲保留为历史，请按当前要求重新生成。
+              </p>
+            )}
             <button
               className="button full"
+              disabled={plan.stale || plan.status !== "Succeeded"}
               onClick={() => {
                 setOutline(plan.output.text || "");
                 notify("候选已填入章纲编辑区；点击保存后生效。");
@@ -1025,6 +1094,7 @@ function RunCard({
   onRefresh,
   compact = false,
   onOpen,
+  onContinue,
 }: {
   run: Run;
   currentRevisionId: string;
@@ -1036,11 +1106,18 @@ function RunCard({
   onRefresh: () => void;
   compact?: boolean;
   onOpen?: () => void;
+  onContinue?: (run: Run) => void;
 }) {
   const [showContext, setShowContext] = useState(false),
     [comparing, setComparing] = useState(false),
     [hunks, setHunks] = useState<Hunk[]>([]),
     [working, setWorking] = useState(false);
+  const session = useQuery({
+    queryKey: ["session"],
+    queryFn: () => api<Session>("/session"),
+  });
+  const canContinueOwn =
+    !run.input.ownerId || run.input.ownerId === session.data?.user?.id;
   const text = run.output?.text || "";
   const inputRevision = String(
     run.input?.revisionId || run.input?.inputRevisionId || "",
@@ -1080,7 +1157,10 @@ function RunCard({
   };
   const issues = run.output?.issues || [];
   return (
-    <article className={"run-card " + (compact ? "compact" : "")}>
+    <article
+      className={"run-card " + (compact ? "compact" : "")}
+      data-run-id={run.id}
+    >
       <div className="run-header">
         <span className="run-kind">
           <span className="run-small-icon">
@@ -1120,6 +1200,7 @@ function RunCard({
         </button>
       ) : (
         <>
+          <TaskMemoryUsage run={run} />
           {busy(run) && (
             <div className="generating-state">
               <span className="ink-pulse" />
@@ -1153,6 +1234,18 @@ function RunCard({
               <pre>{text}</pre>
             </div>
           )}
+          {onContinue &&
+            ["draft", "revision", "rewrite"].includes(run.type) &&
+            text && (
+              <button
+                className="button"
+                disabled={!canApply || !canContinueOwn || working}
+                onClick={() => onContinue(run)}
+              >
+                <Sparkles size={13} />
+                和创作伙伴继续打磨
+              </button>
+            )}
           {!!issues.length && (
             <div className="issues-list">
               <span className="section-label">
@@ -1309,9 +1402,9 @@ function RunCard({
                 }
                 onClick={() => {
                   setWorking(true);
-                  onApply(applyHunks(hunks), run.id).finally(() =>
-                    setWorking(false),
-                  );
+                  onApply(applyHunks(hunks), run.id)
+                    .catch((error) => notify(message(error)))
+                    .finally(() => setWorking(false));
                 }}
               >
                 保存选中的修订
@@ -1510,6 +1603,7 @@ function MemoryPanel(
           </div>
         </div>
       )}
+      <TaskMemoryExclusion taskType="memory-extraction" />
       <button
         className="button primary full"
         disabled={props.starting || !chapter.finalRevisionId}

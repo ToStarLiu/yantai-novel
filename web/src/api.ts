@@ -75,6 +75,28 @@ export type Run = {
   createdAt: string;
   updatedAt?: string;
 };
+export type TaskAuthorContext = {
+  runId: string;
+  ownerId: string;
+  ignoreMemory: boolean;
+  excludedReason: string;
+  current: boolean;
+  sourceCurrent?: boolean;
+  memory?: {
+    ownerId: string;
+    version: number;
+    hash: string;
+    enabled: boolean;
+    items: {
+      id: string;
+      scope: "author" | "book";
+      kind: string;
+      title: string;
+      content: string;
+      version: number;
+    }[];
+  };
+};
 export type Impact = {
   id: string;
   projectId: string;

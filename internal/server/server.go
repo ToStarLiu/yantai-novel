@@ -113,6 +113,7 @@ func (s *Server) Handler() http.Handler {
 		s.registerProviderSettings(r)
 		s.registerWritingSkills(r)
 		s.registerAuthorMemory(r)
+		s.registerAuthorTaskContext(r)
 		r.Delete("/api/session", s.logout)
 		r.Get("/api/config", func(w http.ResponseWriter, r *http.Request) {
 			_, policy, provider, e := s.Service.ResolveTaskProvider(r.Context(), "copilot")

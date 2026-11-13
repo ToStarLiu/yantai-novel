@@ -15,6 +15,7 @@ import (
 )
 
 type RunRequest struct {
+	IgnoreMemory       bool           `json:"ignoreMemory,omitempty"`
 	IntentID           string         `json:"intentId"`
 	TaskType           string         `json:"taskType"`
 	InputRevisionID    string         `json:"inputRevisionId"`
@@ -39,6 +40,9 @@ type RunRequest struct {
 	Feature            string         `json:"feature,omitempty"`
 }
 type RunInput struct {
+	OwnerID            string                `json:"ownerId,omitempty"`
+	IgnoreMemory       bool                  `json:"ignoreMemory,omitempty"`
+	AuthorContextBytes int64                 `json:"authorContextBytes,omitempty"`
 	ProjectID          string                `json:"projectId"`
 	ChapterID          string                `json:"chapterId"`
 	RevisionID         string                `json:"revisionId"`
@@ -507,6 +511,10 @@ func (s *Service) SubmitRun(ctx context.Context, cid string, in RunRequest) (Run
 		max = maxAgent
 	}
 	snapshot.Request = llm.Request{Model: snapshot.Model, Messages: []llm.Message{{Role: "system", Content: system}, {Role: "user", Content: string(payload)}}, MaxOutputTokens: max, ResponseSchema: schema, Temperature: in.Temperature, TopP: in.TopP}
+	privateTask, err := s.prepareAuthorTask(ctx, &snapshot, in.IgnoreMemory)
+	if err != nil {
+		return Run{}, err
+	}
 	raw, err := json.Marshal(snapshot)
 	if err != nil {
 		return Run{}, err
@@ -519,6 +527,14 @@ func (s *Service) SubmitRun(ctx context.Context, cid string, in RunRequest) (Run
 	defer tx.Rollback(ctx)
 	var lockedProject string
 	if err = tx.QueryRow(ctx, "SELECT id FROM wb_projects WHERE id=$1 FOR UPDATE", ch.ProjectID).Scan(&lockedProject); err != nil {
+		return Run{}, err
+	}
+	if privateTask != nil {
+		if err = checkAuthorTaskPrincipalTx(ctx, tx, ch.ProjectID, privateTask.Principal, in.TaskType); err != nil {
+			return Run{}, err
+		}
+	}
+	if err = checkAuthorBatchBoundary(ctx, tx); err != nil {
 		return Run{}, err
 	}
 	current, err := snapshotCurrent(ctx, tx, Run{ChapterID: cid, Type: in.TaskType, Input: snapshot})
@@ -543,6 +559,9 @@ func (s *Service) SubmitRun(ctx context.Context, cid string, in RunRequest) (Run
 			return Run{}, &Conflict{Message: "意图已存在且输入不同"}
 		}
 	} else {
+		if err = saveAuthorTaskTx(ctx, tx, id, privateTask); err != nil {
+			return Run{}, err
+		}
 		if err = s.checkBudgetTx(ctx, tx, ch.ProjectID, id, snapshot); err != nil {
 			return Run{}, err
 		}
@@ -572,7 +591,7 @@ func (s *Service) RunAction(ctx context.Context, id, action string) (Run, error)
 		if e != nil {
 			return r, e
 		}
-		return s.SubmitRun(ctx, r.ChapterID, RunRequest{IntentID: job.NewID(), TaskType: r.Type, InputRevisionID: r.Input.RevisionID, Instructions: r.Input.Instructions, SelectedIssues: r.Input.SelectedIssues, Selection: r.Input.Selection, Operation: r.Input.Operation, CandidateRunID: r.Input.CandidateRunID, PromptTemplateID: r.Input.PromptTemplateID, AgentID: r.Input.AgentID, ReferenceID: r.Input.ReferenceID, SceneID: r.Input.SceneID, Temperature: r.Input.Request.Temperature, TopP: r.Input.Request.TopP, Scope: r.Input.Scope, VolumeID: r.Input.VolumeID, ContextSummaryID: r.Input.ContextSummaryID, MCPCalls: r.Input.MCPCalls, CanvasNodeIDs: r.Input.CanvasNodeIDs, CanvasBoardVersion: r.Input.CanvasBoardVersion, Feature: r.Input.Feature})
+		return s.SubmitRun(ctx, r.ChapterID, RunRequest{IntentID: job.NewID(), TaskType: r.Type, InputRevisionID: r.Input.RevisionID, Instructions: r.Input.Instructions, SelectedIssues: r.Input.SelectedIssues, Selection: r.Input.Selection, Operation: r.Input.Operation, CandidateRunID: r.Input.CandidateRunID, PromptTemplateID: r.Input.PromptTemplateID, AgentID: r.Input.AgentID, ReferenceID: r.Input.ReferenceID, SceneID: r.Input.SceneID, Temperature: r.Input.Request.Temperature, TopP: r.Input.Request.TopP, Scope: r.Input.Scope, VolumeID: r.Input.VolumeID, ContextSummaryID: r.Input.ContextSummaryID, MCPCalls: r.Input.MCPCalls, CanvasNodeIDs: r.Input.CanvasNodeIDs, CanvasBoardVersion: r.Input.CanvasBoardVersion, Feature: r.Input.Feature, IgnoreMemory: r.Input.IgnoreMemory})
 	}
 	tx, err := s.DB.Begin(ctx)
 	if err != nil {
@@ -581,6 +600,9 @@ func (s *Service) RunAction(ctx context.Context, id, action string) (Run, error)
 	defer tx.Rollback(ctx)
 	r, err := scanRun(tx.QueryRow(ctx, "SELECT "+runColumns+" FROM wb_runs WHERE id=$1 FOR UPDATE", id))
 	if err != nil {
+		return r, err
+	}
+	if err = s.authorizePrivateRunAction(ctx, r); err != nil {
 		return r, err
 	}
 	next := r.Status

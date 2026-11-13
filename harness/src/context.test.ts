@@ -113,3 +113,15 @@ test('cleared author-memory pages retain private provenance and reread instructi
   assert.equal(text.includes('FORGOTTEN-PROSE'),false);
   assert.ok(textOf(page).includes('FORGOTTEN-PROSE'));
 });
+
+
+test('candidate lineage and comparison base survive artifact projection and old-source clearing',()=>{
+ const result={content:{runId:'child',text:'候选'.repeat(4000)},artifact:{kind:'revision-candidate',runId:'child',parentCandidateRunId:'parent',comparisonRunId:'parent',comparisonBase:'parent',text:'完整'.repeat(8000)}};
+ const projection=projectToolResult(result) as any;
+ assert.equal(projection.artifact.parentCandidateRunId,'parent');assert.equal(projection.artifact.comparisonRunId,'parent');assert.equal(projection.artifact.comparisonBase,'parent');
+ assert.equal(JSON.stringify(projection).includes('完整'),false);
+ const history: Message[]=[userMessage('继续父候选'),fauxAssistantMessage('候选'),{role:'toolResult',toolCallId:'read-parent',toolName:'read_revision_candidate',isError:false,timestamp:1,content:[{type:'text',text:JSON.stringify({runId:'parent',hash:'parent-hash',parentCandidateRunId:'ancestor',offset:0,nextOffset:1000,text:'旧候选'.repeat(800)})}]}];
+ for(let i=0;i<3;i++)history.push(userMessage('近期要求'+i),fauxAssistantMessage('回答'+i));
+ const cleared=clearOldToolResults(history);
+ const text=textOf(cleared.messages[2]);assert.ok(text.includes('parent-hash'));assert.ok(text.includes('ancestor'));assert.ok(text.includes('重新分页读取'));assert.equal(text.includes('旧候选'),false);
+});

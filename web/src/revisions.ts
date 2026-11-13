@@ -57,3 +57,25 @@ export function canApplyCandidate(
 ) {
   return !stale && inputRevisionId === currentRevisionId;
 }
+
+// Ordinary rewrite output contains only the replacement passage. Rebuild the
+// whole frozen candidate before comparing it with a later complete draft.
+export function candidateDocumentText(run: {
+  type: string;
+  output: { text?: string };
+  input: Record<string, unknown>;
+}): string | undefined {
+  const text = run.output.text;
+  if (typeof text !== "string") return undefined;
+  if (run.type !== "rewrite") return text;
+  const source = run.input.source,
+    selection = run.input.selection;
+  if (
+    typeof source !== "string" ||
+    typeof selection !== "string" ||
+    !selection ||
+    source.split(selection).length !== 2
+  )
+    return undefined;
+  return source.replace(selection, () => text);
+}

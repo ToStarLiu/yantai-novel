@@ -75,6 +75,7 @@ import {
   AUTHOR_MEMORY_OPEN,
   type OpenAuthorMemoryRequest,
 } from "./authorMemoryEvents";
+import { confirmWorkspaceNavigation } from "./navigationGuard";
 import "./workspaceLayout.css";
 const LazyAuthorMemories = lazy(() => import("./AuthorMemories"));
 const LazyWritingSkills = lazy(() => import("./WritingSkills"));
@@ -328,6 +329,7 @@ export default function App() {
         : "library",
   );
   const [providerOpen, setProviderOpen] = useState(false);
+  const [styleRequest, setStyleRequest] = useState(0);
   const [skillsOpen, setSkillsOpen] = useState(false);
   const [authorMemoryOpen, setAuthorMemoryOpen] =
     useState<OpenAuthorMemoryRequest | null>(null);
@@ -468,7 +470,9 @@ export default function App() {
     cid?: string,
   ) => {
     try {
+      if (!confirmWorkspaceNavigation()) return;
       await draftFlush.current?.();
+      setStyleRequest(0);
       if (pid !== projectId) setProjectId(pid);
       if (cid) setChapterId(cid);
       setSurface(next);
@@ -684,6 +688,16 @@ export default function App() {
       description: "安排故事节点与因果",
       group: "作品",
       onSelect: () => commandStudio("canvas"),
+    },
+    {
+      id: "writing-profile",
+      label: "文风与写法",
+      description: "查看本书写法、个人偏好、文字样例与 Skills",
+      group: "作者",
+      onSelect: async () => {
+        await navigate("book");
+        setStyleRequest(Date.now());
+      },
     },
     {
       id: "author-memory",
@@ -937,6 +951,7 @@ export default function App() {
             aria-label="退出登录"
             onClick={() =>
               void act(async () => {
+                if (!confirmWorkspaceNavigation()) return;
                 await draftFlush.current?.();
                 await api("/session", "DELETE");
                 setAuthorMemoryOpen(null);
@@ -1024,6 +1039,16 @@ export default function App() {
               >
                 <Leaf size={19} />
                 <span>Skills</span>
+              </button>
+              <button
+                aria-label="文风与写法"
+                title="本书写法与作者声音"
+                onClick={() =>
+                  void navigate("book").then(() => setStyleRequest(Date.now()))
+                }
+              >
+                <Feather size={19} />
+                <span>文风</span>
               </button>
               <button
                 aria-label="打开作者记忆"
@@ -1319,6 +1344,7 @@ export default function App() {
         detail.data ? (
           <BookHome
             key={projectId}
+            styleRequest={styleRequest}
             detail={detail.data}
             onWrite={(cid) =>
               void navigate("write", projectId, cid || chapters[0]?.id)
@@ -1850,7 +1876,7 @@ function ChapterWorkspace({
       onReload();
       notify("选中的修订已保存为新版本");
     } catch (e) {
-      notify(message(e));
+      throw e;
     }
   };
   const count = plainText(draft.doc).replace(/\s/g, "").length;

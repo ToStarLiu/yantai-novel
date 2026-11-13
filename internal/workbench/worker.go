@@ -104,6 +104,10 @@ func (s *Service) ClaimRun(ctx context.Context, owner string) (Run, bool, error)
 }
 
 func (s *Service) beginCall(ctx context.Context, r Run) (string, error) {
+	privateTask, err := s.loadAuthorTask(ctx, r)
+	if err != nil {
+		return "", err
+	}
 	tx, err := s.DB.Begin(ctx)
 	if err != nil {
 		return "", err
@@ -115,6 +119,11 @@ func (s *Service) beginCall(ctx context.Context, r Run) (string, error) {
 	}
 	if !current {
 		return "", &Conflict{Message: "输入已过期，请基于当前稿重新生成"}
+	}
+	if privateTask != nil {
+		if err = checkAuthorTaskPrincipalTx(ctx, tx, r.ProjectID, privateTask.Principal, r.Type); err != nil {
+			return "", err
+		}
 	}
 	if err = s.checkBudgetTx(ctx, tx, r.ProjectID, r.ID, r.Input); err != nil {
 		return "", err
@@ -138,6 +147,14 @@ func (s *Service) beginCall(ctx context.Context, r Run) (string, error) {
 }
 
 func (s *Service) ExecuteRun(ctx context.Context, r Run) error {
+	privateTask, privateErr := s.loadAuthorTask(ctx, r)
+	if privateErr != nil {
+		return s.failBeforeCall(ctx, r, privateErr)
+	}
+	request := r.Input.Request
+	if privateTask != nil {
+		request = privateTask.Request
+	}
 	if r.Input.UseCache && r.Type != "memory-extraction" {
 		cached, ok, err := s.GetRunCache(ctx, r.Input)
 		if err != nil {
@@ -164,9 +181,9 @@ func (s *Service) ExecuteRun(ctx context.Context, r Run) error {
 	var response llm.Response
 	var callErr error
 	if streaming, ok := provider.(llm.StreamingProvider); ok {
-		response, callErr = s.streamRun(callCtx, r, streaming)
+		response, callErr = s.streamRunWithRequest(callCtx, r, streaming, request)
 	} else {
-		response, callErr = provider.Generate(callCtx, r.Input.Request)
+		response, callErr = provider.Generate(callCtx, request)
 	}
 	output := RunOutput{Text: response.Text}
 	disposition := ""
@@ -242,6 +259,14 @@ func (s *Service) ExecuteRun(ctx context.Context, r Run) error {
 		return err
 	}
 	stale := !current
+	if privateTask != nil {
+		if accessErr := checkAuthorTaskPrincipalTx(saveCtx, tx, r.ProjectID, privateTask.Principal, r.Type); accessErr != nil {
+			if !errors.Is(accessErr, ErrForbidden) {
+				return accessErr
+			}
+			stale = true
+		}
+	}
 	if cancelRequested {
 		status = "Cancelled"
 	} else if pauseRequested && status == "Succeeded" {
@@ -411,6 +436,9 @@ var _ pgx.Row
 // First output is immediate; later output flushes every 75ms or 256 UTF-8 bytes.
 // The timer also checks cancellation/lease while the provider waits silently.
 func (s *Service) streamRun(ctx context.Context, r Run, provider llm.StreamingProvider) (llm.Response, error) {
+	return s.streamRunWithRequest(ctx, r, provider, r.Input.Request)
+}
+func (s *Service) streamRunWithRequest(ctx context.Context, r Run, provider llm.StreamingProvider, request llm.Request) (llm.Response, error) {
 	streamCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	type increment struct {
@@ -424,7 +452,7 @@ func (s *Service) streamRun(ctx context.Context, r Run, provider llm.StreamingPr
 	increments := make(chan increment)
 	completed := make(chan completion, 1)
 	go func() {
-		response, err := provider.Stream(streamCtx, r.Input.Request, func(delta llm.Delta) error {
+		response, err := provider.Stream(streamCtx, request, func(delta llm.Delta) error {
 			if delta.Text == "" {
 				return nil
 			}

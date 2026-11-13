@@ -32,6 +32,7 @@ import {
 } from "./api";
 import {
   applyHunks,
+  candidateDocumentText,
   canApplyCandidate,
   paragraphDiff,
   type Hunk,
@@ -57,9 +58,15 @@ import {
 import { openAuthorMemories } from "./authorMemoryEvents";
 import "./copilot.css";
 
+export type CandidateTarget = {
+  runId: string;
+  title: string;
+  selection?: string;
+};
 type Props = {
   composeRequest?: { id: number; text: string };
-  onRefine?: (text: string) => void;
+  candidateRequest?: { id: number; text: string; target: CandidateTarget };
+  onRefine?: (text: string, target?: CandidateTarget) => void;
   onBusyChange?: (busy: boolean) => void;
   scope?: "book" | "chapter";
   briefVersion?: number;
@@ -85,6 +92,8 @@ export default function Copilot(props: Props) {
     () => localStorage.getItem(sessionKey) || "",
   );
   const [draft, setDraft] = useState("");
+  const [candidateTarget, setCandidateTarget] =
+    useState<CandidateTarget | null>(null);
   const [working, setWorking] = useState(false);
   const [showSessions, setShowSessions] = useState(false);
   const [includeSelection, setIncludeSelection] = useState(true);
@@ -144,6 +153,7 @@ export default function Copilot(props: Props) {
   }, [working, !!active, props.onBusyChange]);
   useEffect(() => {
     if (!props.composeRequest) return;
+    setCandidateTarget(null);
     setIncludeSelection(true);
     const requestText = props.composeRequest.text;
     setDraft((current) =>
@@ -152,6 +162,16 @@ export default function Copilot(props: Props) {
     const frame = requestAnimationFrame(() => input.current?.focus());
     return () => cancelAnimationFrame(frame);
   }, [props.composeRequest?.id]);
+  useEffect(() => {
+    if (!props.candidateRequest) return;
+    const request = props.candidateRequest;
+    setCandidateTarget(request.target);
+    setDraft((current) =>
+      current.trim() ? current + "\n\n" + request.text : request.text,
+    );
+    const frame = requestAnimationFrame(() => input.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [props.candidateRequest?.id]);
   const unreadable = conversation.isError;
   useEffect(() => {
     if (!lists.data) return;
@@ -166,6 +186,7 @@ export default function Copilot(props: Props) {
     if (sessionID) localStorage.setItem(sessionKey, sessionID);
     else localStorage.removeItem(sessionKey);
     setEvents({});
+    setCandidateTarget(null);
     setFollowing(true);
     setStreamError(false);
   }, [pid, sessionID, sessionKey]);
@@ -276,7 +297,15 @@ export default function Copilot(props: Props) {
           text: text.trim(),
           chapterId: props.chapter.id,
           inputRevisionId: revision,
-          selection: includeSelection ? props.selection : "",
+          selection: candidateTarget
+            ? ""
+            : includeSelection
+              ? props.selection
+              : "",
+          candidateRunId:
+            mode === "compact" ? "" : candidateTarget?.runId || "",
+          candidateSelection:
+            mode === "compact" ? "" : candidateTarget?.selection || "",
           pointOfViewCharacterId: book ? "" : pointOfView,
           ignoreMemory,
           maxSteps: 8,
@@ -287,6 +316,7 @@ export default function Copilot(props: Props) {
       setSessionID(selected);
       setDraft("");
       setIgnoreMemory(false);
+      setCandidateTarget(null);
       setFollowing(true);
       qc.setQueryData<CopilotDetail>(["copilot-session", selected], (old) =>
         old ? { ...old, turns: [...old.turns, turn] } : old,
@@ -528,7 +558,8 @@ export default function Copilot(props: Props) {
             turn={turn}
             events={events[turn.id] || []}
             {...props}
-            onRefine={(text) => {
+            onRefine={(text, target) => {
+              setCandidateTarget(target || null);
               setDraft((current) =>
                 current.trim() ? current + "\n\n" + text : text,
               );
@@ -570,7 +601,32 @@ export default function Copilot(props: Props) {
           void send();
         }}
       >
-        {props.selection && includeSelection && (
+        {candidateTarget && (
+          <div className="copilot-candidate-target" aria-label="本轮修改的候选">
+            <GitCompareArrows size={13} />
+            <div>
+              <strong>{candidateTarget.title || "继续打磨候选"}</strong>
+              <span>
+                {candidateTarget.selection
+                  ? "只修改候选中的选段"
+                  : "基于这份候选继续修改"}{" "}
+                · {candidateTarget.runId.slice(0, 8)}
+              </span>
+              {candidateTarget.selection && (
+                <blockquote>{candidateTarget.selection}</blockquote>
+              )}
+            </div>
+            <button
+              type="button"
+              aria-label="取消本轮候选引用"
+              disabled={working || !!active}
+              onClick={() => setCandidateTarget(null)}
+            >
+              <X size={13} />
+            </button>
+          </div>
+        )}
+        {!candidateTarget && props.selection && includeSelection && (
           <div className="copilot-selection">
             <Quote size={12} />
             <span>
@@ -586,7 +642,7 @@ export default function Copilot(props: Props) {
             </button>
           </div>
         )}
-        {props.selection && !includeSelection && (
+        {!candidateTarget && props.selection && !includeSelection && (
           <button
             className="text-button"
             type="button"
@@ -749,6 +805,15 @@ function Turn({
             <Brain size={11} />
             记住这句话
           </button>
+          {turn.input.candidateRunId && (
+            <div className="copilot-turn-candidate">
+              <GitCompareArrows size={11} />
+              <span>
+                基于候选 {turn.input.candidateRunId.slice(0, 8)} 继续打磨
+                {turn.input.candidateSelection ? " · 仅选段" : ""}
+              </span>
+            </div>
+          )}
           {turn.input.selection && (
             <details>
               <summary>
@@ -990,6 +1055,8 @@ function ChapterArtifact({
     [hunks, setHunks] = useState<Hunk[]>([]),
     [working, setWorking] = useState(false),
     [adoptedHere, setAdopted] = useState(false);
+  const [candidateSelection, setCandidateSelection] = useState("");
+  const [compareBase, setCompareBase] = useState<"source" | "parent">("source");
   const isBlueprint = artifact.kind === "blueprint-proposal";
   const currentVersion = useQuery({
     queryKey: ["revision", props.currentRevisionId],
@@ -1014,6 +1081,17 @@ function ChapterArtifact({
     queryFn: () => api<Run>(`/runs/${artifact.runId}`),
     enabled: !!artifact.runId,
   });
+  const parentID =
+    artifact.parentCandidateRunId ||
+    String(run.data?.input.candidateRunId || "");
+  const parent = useQuery({
+    queryKey: ["copilot-artifact-run", parentID],
+    queryFn: () => api<Run>(`/runs/${parentID}`),
+    enabled: !!parentID,
+  });
+  const parentText = parent.data
+    ? candidateDocumentText(parent.data)
+    : undefined;
   const valid =
     run.isSuccess &&
     run.data.status === "Succeeded" &&
@@ -1026,6 +1104,7 @@ function ChapterArtifact({
     (!isBlueprint ||
       artifact.blueprintVersion === props.chapter.blueprintVersion);
   const compare = () => {
+    setCompareBase("source");
     setHunks(
       paragraphDiff(
         isBlueprint ? props.chapter.blueprint : props.currentText,
@@ -1035,7 +1114,13 @@ function ChapterArtifact({
     setComparing(true);
   };
   const adopt = async () => {
-    if (!artifact.runId || !valid || !canWrite) return;
+    if (
+      !artifact.runId ||
+      !valid ||
+      !canWrite ||
+      (comparing && compareBase !== "source")
+    )
+      return;
     setWorking(true);
     try {
       const rid = await props.flush();
@@ -1080,7 +1165,57 @@ function ChapterArtifact({
         </span>
         <span className="pill">{adopted ? "已采用" : "尚未采用"}</span>
       </div>
-      <pre className="copilot-artifact-preview">{artifact.text}</pre>
+      {parentID && (
+        <div className="copilot-candidate-lineage">
+          <GitCompareArrows size={11} />
+          <span>延续候选 {parentID.slice(0, 8)} · 上一稿保留</span>
+        </div>
+      )}
+      <pre
+        className="copilot-artifact-preview"
+        onMouseUp={(event) => {
+          const selected = window.getSelection();
+          if (
+            !selected ||
+            !selected.rangeCount ||
+            !event.currentTarget.contains(selected.anchorNode) ||
+            !event.currentTarget.contains(selected.focusNode)
+          )
+            return;
+          const text = selected.toString();
+          setCandidateSelection(
+            text.trim() && artifact.text.split(text).length === 2 ? text : "",
+          );
+        }}
+      >
+        {artifact.text}
+      </pre>
+      {!isBlueprint && candidateSelection && (
+        <div className="copilot-candidate-selection">
+          <Quote size={12} />
+          <span>
+            {candidateSelection.slice(0, 120)}
+            {candidateSelection.length > 120 ? "…" : ""}
+          </span>
+          <button
+            type="button"
+            className="text-button"
+            disabled={!valid || !props.artifactReady}
+            onClick={() =>
+              props.onRefine?.(
+                "请只打磨候选中引用的这一段，保留其他段落、事实和人物口吻。",
+                {
+                  runId: artifact.runId!,
+                  title: artifact.title,
+                  selection: candidateSelection,
+                },
+              )
+            }
+          >
+            只打磨这段
+          </button>
+        </div>
+      )}
       {!valid && !adopted && artifact.kind !== "diff" && !run.isLoading && (
         <p className="copilot-stale">
           输入版本已变化，这份候选保留为历史。请基于当前正文继续讨论。
@@ -1091,6 +1226,19 @@ function ChapterArtifact({
           <button className="button" onClick={compare} disabled={!valid}>
             查看 Diff
           </button>
+          {parentID && (
+            <button
+              className="button"
+              disabled={!parentText}
+              onClick={() => {
+                setHunks(paragraphDiff(parentText || "", artifact.text));
+                setCompareBase("parent");
+                setComparing(true);
+              }}
+            >
+              与上一稿比较
+            </button>
+          )}
           <button
             className="button primary"
             disabled={
@@ -1098,6 +1246,7 @@ function ChapterArtifact({
               !canWrite ||
               working ||
               !artifact.runId ||
+              (comparing && compareBase === "parent") ||
               (!isBlueprint &&
                 comparing &&
                 !hunks.some((h) => h.changed && h.accepted))
@@ -1121,6 +1270,9 @@ function ChapterArtifact({
         <button
           className="button"
           onClick={() => {
+            setCompareBase(
+              artifact.comparisonBase === "parent" ? "parent" : "source",
+            );
             setHunks(
               artifact.diff || paragraphDiff(props.currentText, artifact.text),
             );
@@ -1134,6 +1286,18 @@ function ChapterArtifact({
         artifact.kind === "revision-candidate" &&
         props.onRefine && (
           <div className="copilot-feedback" aria-label="继续打磨候选">
+            <button
+              type="button"
+              disabled={!props.artifactReady || !valid}
+              onClick={() =>
+                props.onRefine?.(
+                  "请继续打磨这份候选，保留已满意的表达，只修改我接下来指出的地方。",
+                  { runId: artifact.runId!, title: artifact.title },
+                )
+              }
+            >
+              继续打磨这稿
+            </button>
             <span>还差一点？</span>
             {["更含蓄", "少解释", "节奏更紧", "保留原声"].map(
               (label, index) => (
@@ -1148,9 +1312,8 @@ function ChapterArtifact({
                         "请继续打磨这份改写候选：删去重复解释和段尾总结，让读者自己体会；保持事实。",
                         "请继续打磨这份改写候选：压紧重复铺陈，让动作推进冲突；保留关键线索和人物意图。",
                         "请继续打磨这份改写候选：对照原文保留作者措辞、人物口吻和句子节奏，只修改必要部分。",
-                      ][index] +
-                        "\n候选编号：" +
-                        artifact.runId,
+                      ][index],
+                      { runId: artifact.runId!, title: artifact.title },
                     )
                   }
                 >
@@ -1164,17 +1327,22 @@ function ChapterArtifact({
       {comparing && (
         <div className="copilot-diff" aria-label="候选差异">
           <div className="row-between">
-            <small>{changed.length} 处变化</small>
-            {!isBlueprint && artifact.kind !== "diff" && (
-              <button
-                className="text-button"
-                onClick={() =>
-                  setHunks(hunks.map((h) => ({ ...h, accepted: true })))
-                }
-              >
-                全选修订
-              </button>
-            )}
+            <small>
+              {compareBase === "parent" ? "对比上一稿（只读）" : "对比当前原稿"}{" "}
+              · {changed.length} 处变化
+            </small>
+            {!isBlueprint &&
+              artifact.kind !== "diff" &&
+              compareBase === "source" && (
+                <button
+                  className="text-button"
+                  onClick={() =>
+                    setHunks(hunks.map((h) => ({ ...h, accepted: true })))
+                  }
+                >
+                  全选修订
+                </button>
+              )}
             <button className="text-button" onClick={() => setComparing(false)}>
               收起差异
             </button>
@@ -1184,21 +1352,24 @@ function ChapterArtifact({
               key={h.id}
               className={"copilot-hunk " + (h.changed ? "changed" : "")}
             >
-              {h.changed && !isBlueprint && artifact.kind !== "diff" && (
-                <input
-                  type="checkbox"
-                  checked={h.accepted}
-                  onChange={(e) =>
-                    setHunks(
-                      hunks.map((row) =>
-                        row.id === h.id
-                          ? { ...row, accepted: e.target.checked }
-                          : row,
-                      ),
-                    )
-                  }
-                />
-              )}
+              {h.changed &&
+                !isBlueprint &&
+                artifact.kind !== "diff" &&
+                compareBase === "source" && (
+                  <input
+                    type="checkbox"
+                    checked={h.accepted}
+                    onChange={(e) =>
+                      setHunks(
+                        hunks.map((row) =>
+                          row.id === h.id
+                            ? { ...row, accepted: e.target.checked }
+                            : row,
+                        ),
+                      )
+                    }
+                  />
+                )}
               <span>
                 {h.changed && h.before && <del>{h.before}</del>}
                 {h.changed ? <ins>{h.after || "（删除这段）"}</ins> : h.after}

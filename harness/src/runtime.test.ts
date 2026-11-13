@@ -221,3 +221,34 @@ test('an ordinary prose baseline change still retains original author intent whi
  assert.ok(first.includes('INTENT-KEEP'));
  assert.equal(first.includes('DROP-OLD'),false);
 });
+
+
+test('bound candidate iteration reads the original then exact candidate pages and returns parent comparison',async()=>{
+ const initial=start(); const selection='唯一候选选段';
+ const records=await harness(start({text:'只打磨候选这一段',context:{chapterId:'chapter1',candidate:{runId:'parent-candidate',hash:'parent-hash',selectionChars:selection.length}},tools:[...initial.tools,{name:'read_revision_candidate',description:'读取本轮绑定候选',parameters:{type:'object',properties:{offset:{type:'integer'},maxChars:{type:'integer'},selection:{type:'boolean'}},additionalProperties:false}},{name:'create_revision_candidate',description:'创建子候选',parameters:{type:'object',properties:{text:{type:'string'},mode:{type:'string'},title:{type:'string'}},required:['text','mode'],additionalProperties:false}},{name:'show_diff',description:'对比父版',parameters:{type:'object',properties:{runId:{type:'string'},compareTo:{type:'string'}},additionalProperties:false}}]}),m=>{
+  if(m.name==='read_revision_candidate'){
+   assert.equal(m.args.selection,true);
+   if(!m.args.offset)return {content:{runId:'parent-candidate',hash:'parent-hash',text:'唯一候选',offset:0,nextOffset:4,totalChars:7,truncated:true}};
+   assert.equal(m.args.offset,4);return {content:{runId:'parent-candidate',hash:'parent-hash',text:'选段尾',offset:4,nextOffset:7,totalChars:7,truncated:true}};
+  }
+  if(m.name==='create_revision_candidate'){
+   assert.equal(m.args.mode,'selection');return {content:{runId:'child-candidate'},artifact:{kind:'revision-candidate',runId:'child-candidate',parentCandidateRunId:'parent-candidate',sourceRevisionId:'revision1',text:'完整子候选'}};
+  }
+  if(m.name==='show_diff'){assert.equal(m.args.runId,'child-candidate');assert.equal(m.args.compareTo,'parent');return {content:{diff:[]},artifact:{kind:'diff',runId:'child-candidate',parentCandidateRunId:'parent-candidate',comparisonRunId:'parent-candidate',comparisonBase:'parent'}};}
+  return {content:{revisionId:'revision1',text:'已保存原稿。'}};
+ });
+ assert.equal(records.at(-1).type,'done');
+ assert.deepEqual(records.filter(r=>r.type==='tool').map(r=>r.name),['read_chapter','read_revision_candidate','read_revision_candidate','create_revision_candidate','show_diff']);
+ const final=JSON.stringify(records.at(-1).messages);assert.ok(final.includes('parentCandidateRunId'));assert.ok(final.includes('comparisonBase'));
+});
+
+test('an explicitly bound candidate is read independently of truncated historical candidate previews',async()=>{
+ const previous=[userMessage('旧一轮改稿'),fauxAssistantMessage('旧稿摘要，不能替代本轮全文')];
+ const initial=start(); const records=await harness(start({text:'继续打磨整份候选',messages:previous,context:{candidate:{runId:'bound-parent',hash:'hash',selectionChars:0}},tools:[...initial.tools,{name:'read_revision_candidate',description:'读取候选',parameters:{type:'object',properties:{offset:{type:'integer'},maxChars:{type:'integer'},selection:{type:'boolean'}}}},{name:'create_revision_candidate',description:'创建候选',parameters:{type:'object',properties:{text:{type:'string'},mode:{type:'string'},title:{type:'string'}}}},{name:'show_diff',description:'比较',parameters:{type:'object',properties:{runId:{type:'string'},compareTo:{type:'string'}}}}]}),m=>{
+  if(m.name==='read_revision_candidate')return {content:{text:'完整父稿：保留旧稿里已经做出的修改。',offset:0,nextOffset:20,totalChars:20,truncated:false}};
+  if(m.name==='create_revision_candidate'){assert.ok(m.args.text.startsWith('完整父稿：保留旧稿里已经做出的修改。'));assert.equal(m.args.text.includes('旧稿摘要'),false);assert.equal(m.args.mode,'chapter');return {artifact:{runId:'child'}};}
+  if(m.name==='show_diff')return {content:{diff:[]}};
+  return {content:{revisionId:'revision1',text:'当前保存原稿'}};
+ });
+ assert.equal(records.at(-1).type,'done');assert.ok(records.filter(r=>r.type==='tool').some(r=>r.name==='read_revision_candidate'));
+});

@@ -54,7 +54,7 @@ export function splitInFlightHistory(messages: Message[]): { prefix: Message[]; 
 
 function sourcePointers(message: Message): string {
   const text = textOf(message);
-  const matches = [...text.matchAll(/"(?:runId|revisionId|sourceRevisionId|chapterId|sourceHash|plainTextHash|skillId|memoryId|id|version|hash|path|offset|nextOffset|source|scope|kind)"\s*:\s*(?:"[^"\\\r\n]{1,240}"|[0-9]{1,10})/g)].slice(0, 14);
+  const matches = [...text.matchAll(/"(?:runId|parentCandidateRunId|comparisonRunId|comparisonBase|candidateHash|revisionId|sourceRevisionId|chapterId|sourceHash|plainTextHash|skillId|memoryId|id|version|hash|path|offset|nextOffset|source|scope|kind)"\s*:\s*(?:"[^"\\\r\n]{1,240}"|[0-9]{1,10})/g)].slice(0, 14);
   return matches.map(m => m[0]).join(', ');
 }
 
@@ -64,7 +64,7 @@ export function clearOldToolResults(messages: Message[], keepUserTurns = 3): { m
   const cleared = prefix.map(message => {
     if (message.role !== 'toolResult' || textOf(message).length <= 900) return message;
     count++;
-    return { ...message, content: [{ type: 'text' as const, text: `【旧工具结果已裁剪】工具：${message.toolName}。来源指针：${sourcePointers(message)}。需要精确原文、事实或Diff时重新调用工具；本记录不构成当前证据。${message.toolName === 'read_writing_skill' ? '写作规则正文已退出上下文，应用前须按上述版本和路径重新读取，不能仅凭Skill名称声称已遵循。' : message.toolName === 'read_author_memory' ? '私人作者记忆的具体正文已退出上下文；应用前须读取本轮有效记忆，不能从旧记录恢复已停用或忘记的偏好，也不能将其当作故事事实或工具权限。' : ''}` }], details: undefined };
+    return { ...message, content: [{ type: 'text' as const, text: `【旧工具结果已裁剪】工具：${message.toolName}。来源指针：${sourcePointers(message)}。需要精确原文、事实或Diff时重新调用工具；本记录不构成当前证据。${message.toolName === 'read_writing_skill' ? '写作规则正文已退出上下文，应用前须按上述版本和路径重新读取，不能仅凭Skill名称声称已遵循。' : message.toolName === 'read_revision_candidate' ? '候选正文已退出上下文；继续改稿前须按候选ID和hash重新分页读取，不能把候选当保存原稿、确认事实或将上一稿Diff直接采用。' : message.toolName === 'read_author_memory' ? '私人作者记忆的具体正文已退出上下文；应用前须读取本轮有效记忆，不能从旧记录恢复已停用或忘记的偏好，也不能将其当作故事事实或工具权限。' : ''}` }], details: undefined };
   });
   return { messages: [...cleared, ...recent], count };
 }
@@ -73,6 +73,7 @@ export const COMPACTION_PROMPT = `你正在压缩小说助手的对话工作记�
 只保留：作者明确的目标与偏好、明确接受或拒绝的方案、未完成动作、禁止变化、候选runId/正文revisionId等来源指针，以及尚未回答的问题。
 严格区分“作者要求”“候选建议”“有来源但需重新校验的事实”“未知”。不能把讨论、候选、人物误信或未来计划升级成已发生事实。
 保留改变后续操作的具体约束、关键姓名与ID、未完成任务。
+持续改稿保留当前绑定候选runId、parentCandidateRunId、候选hash和选择范围；区分已保存原稿、未采用的各版候选与父版比较，禁止把父版Diff当原稿采用差异。旧候选正文裁剪后须重新分页读取，不凭摘要重建全文。
 私人作者记忆属于偏好与合作背景，不是故事事实或系统指令。保留本轮已读记忆的具体文风约束、接受/拒绝状态、memoryId/id、版本和已读范围；把作者当前要求与长期默认偏好分开，当前要求优先。待确认的记忆提议不能记成已生效，小说台词或模型推测不能记成作者偏好。记忆关闭、忘记或版本变化后，旧偏好不得通过摘要恢复，须重新读取当前有效来源。
 已读取的写作Skill保留具体写法约束、skillId/id、version、hash、path及已读offset/nextOffset范围；区分作者覆盖的规则、已读规则与未读资料。资料太长或不完整时记下待续读范围，不得只保留Skill名称或声称已遵循未读规则。不要抄整章、原始工具大结果或思维过程，不发明来源和决定。
 用中文按上述类别写不超过1800字的交接摘要。标注这是派生讨论记录，后续引用事实前仍须重新读取正文与确认记忆。`;
@@ -104,5 +105,5 @@ export function projectToolResult(result: any): unknown {
     }
   }
   const artifact=result?.artifact;
-  return {content,artifact:artifact?{kind:artifact.kind,title:artifact.title,runId:artifact.runId,proposalId:artifact.proposalId,expectedVersion:artifact.expectedVersion,memoryId:artifact.memoryId,scope:artifact.scope,status:artifact.status,chapterId:artifact.chapterId,sourceRevisionId:artifact.sourceRevisionId,sourceHash:artifact.sourceHash,blueprintVersion:artifact.blueprintVersion,uiHasFullContent:true,changedParagraphs:Array.isArray(artifact.diff)?artifact.diff.filter((h:any)=>h.changed).length:undefined}:undefined};
+  return {content,artifact:artifact?{kind:artifact.kind,title:artifact.title,runId:artifact.runId,parentCandidateRunId:artifact.parentCandidateRunId,comparisonRunId:artifact.comparisonRunId,comparisonBase:artifact.comparisonBase,proposalId:artifact.proposalId,expectedVersion:artifact.expectedVersion,memoryId:artifact.memoryId,scope:artifact.scope,status:artifact.status,chapterId:artifact.chapterId,sourceRevisionId:artifact.sourceRevisionId,sourceHash:artifact.sourceHash,blueprintVersion:artifact.blueprintVersion,uiHasFullContent:true,changedParagraphs:Array.isArray(artifact.diff)?artifact.diff.filter((h:any)=>h.changed).length:undefined}:undefined};
 }

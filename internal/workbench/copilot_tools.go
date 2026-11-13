@@ -29,6 +29,8 @@ type CopilotToolContext struct {
 	IgnoreMemory           bool                  `json:"ignoreMemory,omitempty"`
 	SuggestMemories        bool                  `json:"suggestMemories"`
 	Selection              string                `json:"selection"`
+	Candidate              *CandidateReference   `json:"candidate,omitempty"`
+	CandidateSelection     string                `json:"candidateSelection,omitempty"`
 	PointOfViewCharacterID string                `json:"pointOfViewCharacterId,omitempty"`
 	Principal              Principal             `json:"principal"`
 	TurnID                 string                `json:"turnId"`
@@ -47,20 +49,23 @@ type CopilotDiffHunk struct {
 	Accepted bool   `json:"accepted"`
 }
 type CopilotArtifact struct {
-	Kind             string            `json:"kind"`
-	Title            string            `json:"title"`
-	RunID            string            `json:"runId,omitempty"`
-	ProposalID       string            `json:"proposalId,omitempty"`
-	MemoryID         string            `json:"memoryId,omitempty"`
-	Scope            string            `json:"scope,omitempty"`
-	Status           string            `json:"status,omitempty"`
-	ExpectedVersion  int64             `json:"expectedVersion"`
-	ChapterID        string            `json:"chapterId"`
-	SourceRevisionID string            `json:"sourceRevisionId"`
-	SourceHash       string            `json:"sourceHash"`
-	Text             string            `json:"text,omitempty"`
-	BlueprintVersion int64             `json:"blueprintVersion"`
-	Diff             []CopilotDiffHunk `json:"diff,omitempty"`
+	Kind                 string            `json:"kind"`
+	Title                string            `json:"title"`
+	RunID                string            `json:"runId,omitempty"`
+	ProposalID           string            `json:"proposalId,omitempty"`
+	MemoryID             string            `json:"memoryId,omitempty"`
+	Scope                string            `json:"scope,omitempty"`
+	Status               string            `json:"status,omitempty"`
+	ExpectedVersion      int64             `json:"expectedVersion"`
+	ChapterID            string            `json:"chapterId"`
+	SourceRevisionID     string            `json:"sourceRevisionId"`
+	SourceHash           string            `json:"sourceHash"`
+	Text                 string            `json:"text,omitempty"`
+	BlueprintVersion     int64             `json:"blueprintVersion"`
+	Diff                 []CopilotDiffHunk `json:"diff,omitempty"`
+	ParentCandidateRunID string            `json:"parentCandidateRunId,omitempty"`
+	ComparisonRunID      string            `json:"comparisonRunId,omitempty"`
+	ComparisonBase       string            `json:"comparisonBase,omitempty"`
 }
 type CopilotToolResult struct {
 	Content  any              `json:"content"`
@@ -134,6 +139,22 @@ func (s *Service) NewCopilotToolContext(ctx context.Context, turnID, pid, cid, r
 		return out, err
 	}
 	out.AuthorMemory, out.SuggestMemories = &memory, settings.SuggestMemories
+	if turnID != "" {
+		var persisted []byte
+		err = s.DB.QueryRow(ctx, "SELECT input FROM wb_copilot_turns WHERE id=$1 AND owner_id=$2 AND project_id=$3", turnID, p.ID, pid).Scan(&persisted)
+		if err == nil {
+			var input CopilotInput
+			if err = json.Unmarshal(persisted, &input); err != nil {
+				return out, err
+			}
+			if input.ChapterID != cid || input.InputRevisionID != revisionID {
+				return out, ErrForbidden
+			}
+			out.Candidate, out.CandidateSelection = input.Candidate, input.CandidateSelection
+		} else if err != pgx.ErrNoRows {
+			return out, err
+		}
+	}
 	if len(pointOfView) > 0 {
 		out.PointOfViewCharacterID = pointOfView[0]
 	}
@@ -204,6 +225,11 @@ func (s *Service) copilotToolBaseline(ctx context.Context, scope CopilotToolCont
 	if !valid {
 		return c, r, &Conflict{Message: "正文、章纲或作品基线已变化，请重新发送", CurrentRevisionID: c.CurrentRevisionID}
 	}
+	if valid, err = copilotCandidateCurrent(ctx, s.DB, scope.ProjectID, c.ID, r.ID, scope.Principal.ID, scope.Candidate); err != nil {
+		return c, r, err
+	} else if !valid {
+		return c, r, &Conflict{Message: "正在打磨的候选已经失效，请重新选择"}
+	}
 	return c, r, nil
 }
 func boundedCopilotText(text string, max int) (string, bool) {
@@ -233,6 +259,11 @@ func (s *Service) ExecuteCopilotTool(ctx context.Context, scope CopilotToolConte
 	}
 	result := CopilotToolResult{}
 	switch name {
+	case "read_revision_candidate":
+		result, err = s.readCopilotCandidate(ctx, scope, arguments)
+		if err != nil {
+			return result, err
+		}
 	case "read_writing_skill":
 		result, err = readFrozenWritingSkill(scope.WritingSkills, arguments)
 		if err != nil {
@@ -383,10 +414,18 @@ func (s *Service) ExecuteCopilotTool(ctx context.Context, scope CopilotToolConte
 			switch args.Mode {
 			case "chapter":
 			case "selection":
-				if scope.Selection == "" || strings.Count(r.PlainText, scope.Selection) != 1 {
-					return result, fmt.Errorf("本轮没有唯一作者选段")
+				base, selected := r.PlainText, scope.Selection
+				if scope.Candidate != nil {
+					parent, e := loadCopilotCandidate(ctx, s.DB, scope.ProjectID, c.ID, r.ID, scope.Principal.ID, scope.Candidate.RunID)
+					if e != nil {
+						return result, e
+					}
+					base, selected = parent.Output.Text, scope.CandidateSelection
 				}
-				text = strings.Replace(r.PlainText, scope.Selection, args.Text, 1)
+				if selected == "" || strings.Count(base, selected) != 1 {
+					return result, fmt.Errorf("本轮没有唯一的正文或候选选段")
+				}
+				text = strings.Replace(base, selected, args.Text, 1)
 			default:
 				return result, fmt.Errorf("候选模式须为chapter或selection")
 			}
@@ -407,16 +446,17 @@ func (s *Service) ExecuteCopilotTool(ctx context.Context, scope CopilotToolConte
 				title = "正文修改候选"
 			}
 		}
-		artifact := &CopilotArtifact{Kind: artifactKind, Title: title, RunID: run.ID, ChapterID: c.ID, SourceRevisionID: r.ID, SourceHash: r.Hash, Text: run.Output.Text, BlueprintVersion: c.BlueprintVersion}
+		artifact := &CopilotArtifact{Kind: artifactKind, Title: title, RunID: run.ID, ChapterID: c.ID, SourceRevisionID: r.ID, SourceHash: r.Hash, Text: run.Output.Text, BlueprintVersion: c.BlueprintVersion, ParentCandidateRunID: run.Input.CandidateRunID, ComparisonBase: "source"}
 		if kind == "revision" {
 			artifact.Diff = copilotParagraphDiff(r.PlainText, run.Output.Text)
 		}
 		result.Artifact = artifact
-		result.Content = map[string]any{"runId": run.ID, "kind": artifact.Kind, "status": "awaiting-author-adoption", "sourceRevisionId": r.ID, "blueprintVersion": c.BlueprintVersion, "text": run.Output.Text, "authority": "候选已保存，正文、章纲和确认事实均未改变；作者需比较并明确采用。"}
+		result.Content = map[string]any{"runId": run.ID, "kind": artifact.Kind, "status": "awaiting-author-adoption", "sourceRevisionId": r.ID, "blueprintVersion": c.BlueprintVersion, "text": run.Output.Text, "parentCandidateRunId": run.Input.CandidateRunID, "authority": "候选已保存，正文、章纲和确认事实均未改变；作者需比较并明确采用。"}
 	case "show_diff":
 		var args struct {
-			RunID string `json:"runId"`
-			Text  string `json:"text"`
+			RunID     string `json:"runId"`
+			Text      string `json:"text"`
+			CompareTo string `json:"compareTo"`
 		}
 		if err = copilotDecode(arguments, &args); err != nil {
 			return result, err
@@ -424,33 +464,39 @@ func (s *Service) ExecuteCopilotTool(ctx context.Context, scope CopilotToolConte
 		if (args.RunID == "") == (args.Text == "") {
 			return result, fmt.Errorf("需提供候选runId或text其中一项")
 		}
-		text := args.Text
-		if utf8.RuneCountInString(text) > 60000 {
+		if args.CompareTo == "" {
+			args.CompareTo = "source"
+		}
+		if args.CompareTo != "source" && args.CompareTo != "parent" {
+			return result, fmt.Errorf("比较基准须为source或parent")
+		}
+		if utf8.RuneCountInString(args.Text) > 60000 {
 			return result, fmt.Errorf("候选过长")
 		}
+		text, before, parentID, compareID := args.Text, r.PlainText, "", ""
 		if args.RunID != "" {
-			run, err := s.GetRun(ctx, args.RunID)
-			if err != nil {
-				return result, err
+			candidate, e := loadCopilotCandidate(ctx, s.DB, scope.ProjectID, c.ID, r.ID, scope.Principal.ID, args.RunID, scope.TurnID)
+			if e != nil {
+				return result, e
 			}
-			if run.ProjectID != scope.ProjectID || run.ChapterID != c.ID {
-				return result, ErrNotFound
-			}
-			if run.Status != "Succeeded" || run.Stale || run.Input.RevisionID != r.ID || (run.Type != "revision" && run.Type != "draft" && run.Type != "rewrite") {
-				return result, &Conflict{Message: "候选来源已失效或不是正文候选"}
-			}
-			valid, err := snapshotCurrent(ctx, s.DB, run)
-			if err != nil {
-				return result, err
-			}
-			if !valid {
-				return result, &Conflict{Message: "候选输入已经变化"}
-			}
-			text = run.Output.Text
+			text, parentID = candidate.Output.Text, candidate.Input.CandidateRunID
+		} else if scope.Candidate != nil {
+			parentID = scope.Candidate.RunID
 		}
-		hunks := copilotParagraphDiff(r.PlainText, text)
-		result.Artifact = &CopilotArtifact{Kind: "diff", Title: "正文差异", RunID: args.RunID, ChapterID: c.ID, SourceRevisionID: r.ID, SourceHash: r.Hash, Text: text, BlueprintVersion: c.BlueprintVersion, Diff: hunks}
-		result.Content = map[string]any{"sourceRevisionId": r.ID, "sourceHash": r.Hash, "diff": hunks, "authority": "真实段落差异，不采用、不覆盖正文。"}
+		if args.CompareTo == "parent" {
+			if scope.Candidate == nil || parentID == "" || (args.RunID != "" && parentID != scope.Candidate.RunID) {
+				return result, fmt.Errorf("只能与本轮绑定的上一份候选比较")
+			}
+			parent, e := loadCopilotCandidate(ctx, s.DB, scope.ProjectID, c.ID, r.ID, scope.Principal.ID, parentID)
+			if e != nil {
+				return result, e
+			}
+			before, compareID = parent.Output.Text, parent.ID
+		}
+		hunks := copilotParagraphDiff(before, text)
+		result.Artifact = &CopilotArtifact{Kind: "diff", Title: "正文差异", RunID: args.RunID, ChapterID: c.ID, SourceRevisionID: r.ID, SourceHash: r.Hash, Text: text, BlueprintVersion: c.BlueprintVersion, Diff: hunks, ParentCandidateRunID: parentID, ComparisonRunID: compareID, ComparisonBase: args.CompareTo}
+		result.Content = map[string]any{"sourceRevisionId": r.ID, "sourceHash": r.Hash, "comparisonBase": args.CompareTo, "comparisonRunId": compareID, "parentCandidateRunId": parentID, "diff": hunks, "authority": "真实段落差异。上一稿比较只供审阅；采用时仍须与当前保存原稿比较，不直接应用上一稿的差异。"}
+
 	default:
 		return result, fmt.Errorf("未授权或不存在的小说工具")
 	}
@@ -610,7 +656,18 @@ func (s *Service) newCopilotCandidate(ctx context.Context, scope CopilotToolCont
 		return Run{}, &Conflict{Message: "对话已停止或工具执行租约失效"}
 	}
 	input := scope.runInput(r, c)
+	input.OwnerID = scope.Principal.ID
 	input.TaskType = kind
+	if kind == "revision" && scope.Candidate != nil {
+		valid, e := copilotCandidateCurrent(ctx, tx, scope.ProjectID, c.ID, r.ID, scope.Principal.ID, scope.Candidate)
+		if e != nil {
+			return Run{}, e
+		}
+		if !valid {
+			return Run{}, &Conflict{Message: "上一份候选已变化或失效"}
+		}
+		input.CandidateRunID = scope.Candidate.RunID
+	}
 	input.Scope = "chapter"
 	input.Instructions = "Copilot对话中的作者审阅候选，计费已包含在对话调用中。"
 	valid, err := snapshotCurrent(ctx, tx, Run{ChapterID: c.ID, Type: kind, Input: input})

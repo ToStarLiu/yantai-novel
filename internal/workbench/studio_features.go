@@ -10,6 +10,7 @@ import (
 )
 
 type CanvasTaskInput struct {
+	IgnoreMemory    bool     `json:"ignoreMemory,omitempty"`
 	ChapterID       string   `json:"chapterId"`
 	NodeIDs         []string `json:"nodeIds"`
 	InputRevisionID string   `json:"inputRevisionId"`
@@ -94,7 +95,7 @@ func (s *Service) SubmitCanvasTask(ctx context.Context, pid string, in CanvasTas
 	if kind == "planning" {
 		scope = "chapter"
 	}
-	return s.SubmitRun(ctx, in.ChapterID, RunRequest{IntentID: in.IntentID, TaskType: kind, InputRevisionID: in.InputRevisionID, Instructions: instructions + "\n作者补充：" + in.Instructions, Scope: scope, CanvasNodeIDs: in.NodeIDs, CanvasBoardVersion: version, Feature: feature})
+	return s.SubmitRun(ctx, in.ChapterID, RunRequest{IgnoreMemory: in.IgnoreMemory, IntentID: in.IntentID, TaskType: kind, InputRevisionID: in.InputRevisionID, Instructions: instructions + "\n作者补充：" + in.Instructions, Scope: scope, CanvasNodeIDs: in.NodeIDs, CanvasBoardVersion: version, Feature: feature})
 }
 func (s *Service) SubmitHookReview(ctx context.Context, cid string, in RunRequest) (Run, error) {
 	if p, ok := PrincipalFromContext(ctx); ok && !p.Admin {

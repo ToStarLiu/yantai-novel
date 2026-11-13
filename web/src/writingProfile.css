@@ -1,0 +1,202 @@
+.writing-profile {
+  max-width: 960px;
+  margin: auto;
+  color: #405641;
+}
+.writing-profile-intro h2 {
+  font-family: Georgia, "Songti SC", serif;
+  font-weight: 400;
+  font-size: 27px;
+  margin: 12px 0;
+}
+.writing-profile-intro > p {
+  font-size: 13px;
+  line-height: 1.9;
+  color: #849079;
+}
+.writing-profile-order {
+  display: flex;
+  gap: 12px;
+  border: 1px solid #dce6d3;
+  background: #f0f6eb;
+  padding: 15px 17px;
+  border-radius: 8px;
+  margin: 22px 0;
+}
+.writing-profile-order > svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.writing-profile-order strong {
+  font-weight: 500;
+  font-size: 12px;
+}
+.writing-profile-order p {
+  margin: 7px 0;
+  font-size: 12px;
+  line-height: 1.9;
+}
+.writing-profile-order small {
+  font-size: 11px;
+  color: #819174;
+}
+.writing-profile-card {
+  border: 1px solid #e1e7d9;
+  border-radius: 9px;
+  background: #fffefa;
+  padding: 20px 22px;
+  margin: 17px 0;
+  min-width: 0;
+}
+.writing-profile-card > header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.writing-profile-card > header > span {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.writing-profile-card strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+.writing-profile-card .button {
+  font-size: 11px;
+  min-height: 31px;
+  padding: 6px 10px;
+}
+.writing-profile-note,
+.writing-profile-sample > p {
+  font-size: 12px;
+  color: #859279;
+  line-height: 1.9;
+  margin: 13px 0;
+}
+.writing-profile-book {
+  margin: 18px 0 0;
+  display: grid;
+  gap: 15px;
+}
+.writing-profile-book > div {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 12px;
+}
+.writing-profile-book dt {
+  font-size: 11px;
+  color: #8b977f;
+}
+.writing-profile-book dd {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 12px;
+  line-height: 1.9;
+  overflow-wrap: anywhere;
+}
+.writing-profile-form {
+  display: grid;
+  gap: 13px;
+  margin-top: 17px;
+}
+.writing-profile-form > label {
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+}
+.writing-profile-form textarea {
+  font-size: 12px;
+  line-height: 1.9;
+  resize: vertical;
+}
+.writing-profile-form > .button {
+  justify-self: start;
+}
+.writing-profile-extra {
+  margin-top: 20px;
+  font-size: 12px;
+  border-top: 1px solid #e5eadf;
+  padding-top: 12px;
+}
+.writing-profile-extra summary {
+  display: flex;
+  gap: 7px;
+  cursor: pointer;
+}
+.writing-profile-extra p {
+  white-space: pre-wrap;
+  line-height: 1.9;
+}
+.writing-profile-memories,
+.writing-profile-skills {
+  list-style: none;
+  padding: 0;
+  margin: 13px 0 0;
+  display: grid;
+  gap: 10px;
+}
+.writing-profile-memories > li {
+  padding: 11px 13px;
+  border-radius: 6px;
+  background: #f5f8f0;
+}
+.writing-profile-memories > li > span {
+  display: inline-block;
+  font-size: 10px;
+  color: #8b9a7a;
+  margin-right: 8px;
+}
+.writing-profile-memories p {
+  margin: 7px 0 0;
+  font-size: 12px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.writing-profile-skills > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  padding: 8px 0;
+  border-bottom: 1px solid #edf0e8;
+}
+.writing-profile-skills small {
+  width: 100%;
+  color: #94a088;
+}
+.writing-profile-skills span {
+  color: #8d997f;
+}
+.writing-profile-sample > small {
+  font-size: 11px;
+  color: #8d997f;
+  line-height: 1.8;
+}
+.writing-profile-paused {
+  font-size: 12px;
+  color: #a18c5f;
+  line-height: 1.9;
+}
+@media (max-width: 760px) {
+  .writing-profile-card {
+    padding: 15px;
+  }
+  .writing-profile-order {
+    padding: 13px;
+  }
+  .writing-profile-book > div {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+  .writing-profile-card > header {
+    align-items: flex-start;
+  }
+  .writing-profile-intro h2 {
+    font-size: 23px;
+  }
+}

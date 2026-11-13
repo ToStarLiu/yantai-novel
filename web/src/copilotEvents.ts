@@ -18,6 +18,9 @@ export type CopilotArtifact = {
     | "book-plan-proposal"
     | "author-memory-proposal";
   memoryId?: string;
+  parentCandidateRunId?: string;
+  comparisonRunId?: string;
+  comparisonBase?: "source" | "parent";
   scope?: string;
   status?: string;
   proposalId?: string;
@@ -52,6 +55,8 @@ export type CopilotTurn = {
     mode: string;
     pointOfViewCharacterId?: string;
     ignoreMemory?: boolean;
+    candidateRunId?: string;
+    candidateSelection?: string;
     authorMemory?: {
       enabled: boolean;
       version: number;
@@ -98,6 +103,7 @@ export const copilotBusy = (status: string) =>
   ["Pending", "Running", "Cancelling"].includes(status);
 export const toolNames: Record<string, string> = {
   read_book_brief: "读取全书设定",
+  read_revision_candidate: "读取待打磨候选",
   read_author_memory: "查阅作者记忆",
   propose_author_memory: "建议记住偏好",
   read_writing_skill: "查阅写作 Skill",

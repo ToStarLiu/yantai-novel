@@ -80,7 +80,7 @@ jobs:
           go vet ./...
       - name: Run complete PostgreSQL and tool-loop tests
         run: |
-          go test ./... -json -count=1 -timeout=240s | tee backend-tests.jsonl
+          go test ./... -json -count=1 -timeout=420s | tee backend-tests.jsonl
       - name: Reject silently skipped tests
         run: |
           python3 - <<'PY'

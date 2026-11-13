@@ -15444,6 +15444,98 @@
           }
         }
       }
+    },
+    "/api/runs/{id}/author-context": {
+      "get": {
+        "summary": "创建者查看任务使用的作者记忆",
+        "operationId": "get__api_runs_id_author_context",
+        "tags": [
+          "AuthorMemory"
+        ],
+        "description": "读取服务器冻结的私人偏好与排除原因。必须是任务创建者且仍可访问作品；共享作品管理员不能读取他人的私人输入。Copilot制品及旧任务没有普通任务快照时返回404。",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "私人作者上下文",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorTaskContext"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求未完成",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "请求未完成",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "作品权限已撤销或来源账号不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "没有私人快照或不属于当前作者（管理员无旁路）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "请求未完成",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "请求未完成",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -16634,6 +16726,11 @@
           },
           "volumeId": {
             "type": "string"
+          },
+          "ignoreMemory": {
+            "type": "boolean",
+            "default": false,
+            "description": "本次任务或批量子任务不使用作者私人偏好；不删除记忆。事实提取/审稿/来源分析始终排除个人文风。"
           }
         },
         "required": [
@@ -16805,6 +16902,18 @@
           },
           "authorMemory": {
             "$ref": "#/components/schemas/AuthorMemoryBaseline"
+          },
+          "ownerId": {
+            "type": "string",
+            "description": "服务端绑定的任务创建者；不能通过请求替换。"
+          },
+          "ignoreMemory": {
+            "type": "boolean"
+          },
+          "authorContextBytes": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "私有请求增补的UTF-8字节预算；不包含正文，仅用于预算预留。"
           }
         },
         "required": [
@@ -17292,6 +17401,10 @@
           },
           "status": {
             "type": "string"
+          },
+          "ownerId": {
+            "type": "string",
+            "description": "冻结的创建者，仅该作者可变更批量执行状态。"
           }
         },
         "required": [
@@ -17350,6 +17463,11 @@
           },
           "instructions": {
             "type": "string"
+          },
+          "ignoreMemory": {
+            "type": "boolean",
+            "default": false,
+            "description": "本次任务或批量子任务不使用作者私人偏好；不删除记忆。事实提取/审稿/来源分析始终排除个人文风。"
           }
         },
         "required": [
@@ -17376,6 +17494,11 @@
               "type": "string"
             },
             "type": "array"
+          },
+          "ignoreMemory": {
+            "type": "boolean",
+            "default": false,
+            "description": "本次任务或批量子任务不使用作者私人偏好；不删除记忆。事实提取/审稿/来源分析始终排除个人文风。"
           }
         },
         "required": [
@@ -18167,6 +18290,11 @@
           },
           "workflowId": {
             "type": "string"
+          },
+          "ignoreMemory": {
+            "type": "boolean",
+            "default": false,
+            "description": "本次任务或批量子任务不使用作者私人偏好；不删除记忆。事实提取/审稿/来源分析始终排除个人文风。"
           }
         },
         "required": [
@@ -18222,6 +18350,13 @@
           },
           "workflow": {
             "$ref": "#/components/schemas/WorkflowDefinition"
+          },
+          "ownerId": {
+            "type": "string",
+            "description": "冻结的创建者，仅该作者可变更批量执行状态。"
+          },
+          "ignoreMemory": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -20460,6 +20595,16 @@
             "type": "boolean",
             "default": false,
             "description": "本轮不加载作者记忆、不产生记忆建议；旧偏好不会经摘要重新注入。"
+          },
+          "candidateRunId": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "章节对话中继续打磨的候选ID；须同作品/章/正文版本、成功且当前有效，并属于作者上下文。不可与正文选段或compact混用。"
+          },
+          "candidateSelection": {
+            "type": "string",
+            "maxLength": 12000,
+            "description": "逐字来自绑定候选且只出现一次的选段；候选绑定为空时不可提供。UTF-8字节限12000。"
           }
         },
         "required": [
@@ -20572,6 +20717,19 @@
           "suggestMemories": {
             "type": "boolean",
             "description": "本轮捕获的建议开关；实际写入前还会验证当前开关和当前私有轮次。"
+          },
+          "candidate": {
+            "$ref": "#/components/schemas/CandidateReference"
+          },
+          "candidateRunId": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "章节对话中继续打磨的候选ID；须同作品/章/正文版本、成功且当前有效，并属于作者上下文。不可与正文选段或compact混用。"
+          },
+          "candidateSelection": {
+            "type": "string",
+            "maxLength": 12000,
+            "description": "逐字来自绑定候选且只出现一次的选段；候选绑定为空时不可提供。UTF-8字节限12000。"
           }
         },
         "required": [
@@ -20681,6 +20839,22 @@
               "disabled",
               "rejected"
             ]
+          },
+          "parentCandidateRunId": {
+            "type": "string",
+            "description": "本候选延续的上一稿ID"
+          },
+          "comparisonRunId": {
+            "type": "string",
+            "description": "父版比较引用的Run ID"
+          },
+          "comparisonBase": {
+            "type": "string",
+            "enum": [
+              "source",
+              "parent"
+            ],
+            "description": "source是保存原稿采用基准；parent差异只读，不能直接用于保存正文"
           }
         },
         "required": [
@@ -21974,6 +22148,68 @@
           }
         },
         "description": "共享候选仅携带作者ID/上下文版本/哈希作为采用校验，不含记忆标题、正文或来源引文。"
+      },
+      "CandidateReference": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string"
+          },
+          "sourceRevisionId": {
+            "type": "string"
+          },
+          "textHash": {
+            "type": "string"
+          },
+          "parentCandidateRunId": {
+            "type": "string"
+          },
+          "totalChars": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "runId",
+          "sourceRevisionId",
+          "textHash",
+          "totalChars"
+        ],
+        "additionalProperties": false
+      },
+      "AuthorTaskContext": {
+        "type": "object",
+        "description": "仅创建者可读取的任务私人快照。不会嵌入共享Run、Trace或作品包。",
+        "properties": {
+          "runId": {
+            "type": "string"
+          },
+          "ownerId": {
+            "type": "string"
+          },
+          "ignoreMemory": {
+            "type": "boolean"
+          },
+          "excludedReason": {
+            "type": "string"
+          },
+          "current": {
+            "type": "boolean",
+            "description": "作者记忆基线是否仍有效；作品来源是否过期另看Run.stale。"
+          },
+          "memory": {
+            "$ref": "#/components/schemas/AuthorMemorySnapshot"
+          }
+        },
+        "required": [
+          "runId",
+          "ownerId",
+          "ignoreMemory",
+          "excludedReason",
+          "current",
+          "memory"
+        ],
+        "additionalProperties": false
       }
     }
   },

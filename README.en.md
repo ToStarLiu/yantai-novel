@@ -32,7 +32,7 @@ Literary quality, time saved, and long-term voice consistency require evaluation
 
 [![CI](https://github.com/ToStarLiu/yantai-novel/actions/workflows/ci.yml/badge.svg)](https://github.com/ToStarLiu/yantai-novel/actions/workflows/ci.yml)
 
-Author memory is available from the top bar and writing workspace. Save a preference directly, remember one of your messages after review, or confirm a pending suggestion. Book and chapter Copilot load relevant active notes; each turn shows what was loaded and supports opting out. This is a source-workspace addition, separate from the existing v0.4.0 release downloads. See the [product and privacy contract](docs/development/author-memory.md).
+Author memory is available from the top bar and writing workspace. Save a preference directly, remember one of your messages after review, or confirm a pending suggestion. Book and chapter Copilot, single writing tasks, and batch/candidate generation load relevant active notes; factual reviews and extraction remain independent of personal taste. Each task shows its private snapshot and supports opting out. The book’s Voice and Writing page brings together book requirements, personal preferences, original samples and Skills. Explicit candidate references support another revision, selected-passage edits, and comparison with the previous draft before adoption. This is a source-workspace addition, separate from the existing v0.4.0 release downloads. See the [product and privacy contract](docs/development/author-memory.md).
 
 ## Quick start
 

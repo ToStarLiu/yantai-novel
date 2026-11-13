@@ -21,3 +21,28 @@ describe("author-selected revision changes", () => {
     expect(canApplyCandidate("r1", "r1", false)).toBe(true);
   });
 });
+
+import { candidateDocumentText } from "./revisions";
+it("compares a partial rewrite as a complete frozen candidate without losing surrounding prose", () => {
+  expect(
+    candidateDocumentText({
+      type: "rewrite",
+      input: { source: "开场。旧句。收尾。", selection: "旧句。" },
+      output: { text: "新句。" },
+    }),
+  ).toBe("开场。新句。收尾。");
+  expect(
+    candidateDocumentText({
+      type: "rewrite",
+      input: { source: "旧句。旧句。", selection: "旧句。" },
+      output: { text: "新句。" },
+    }),
+  ).toBeUndefined();
+  expect(
+    candidateDocumentText({
+      type: "revision",
+      input: {},
+      output: { text: "整章候选" },
+    }),
+  ).toBe("整章候选");
+});

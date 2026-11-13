@@ -23,6 +23,12 @@ import {
 } from "../api";
 import { paragraphDiff } from "../revisions";
 import {
+  TaskMemoryControl,
+  TaskMemoryUsage,
+  useTaskAuthorMemory,
+} from "../TaskAuthorMemory";
+import { authorMemoryTaskExclusion } from "../taskMemoryPolicy";
+import {
   StudioCard,
   StudioButton,
   StudioError,
@@ -59,6 +65,7 @@ export default function PublishingPanel({
   refresh,
 }: PanelProps) {
   const base = `/projects/${detail.project.id}`;
+  const taskMemory = useTaskAuthorMemory(detail.project.id);
   const media = useQuery({
     queryKey: ["studio", detail.project.id, "media"],
     queryFn: () => api<Media[]>(base + "/media"),
@@ -249,6 +256,13 @@ export default function PublishingPanel({
                   onChange={(e) => setInstructions(e.target.value)}
                 />
               </label>
+              <TaskMemoryControl
+                preference={taskMemory}
+                projectId={detail.project.id}
+                purpose="多候选创作"
+                disabled={working}
+                note="起草候选使用本次创建者的偏好；候选的一致性评分仍只依据作品证据。"
+              />
               <StudioButton
                 primary
                 disabled={working || !target}
@@ -257,6 +271,7 @@ export default function PublishingPanel({
                     () =>
                       api(`/chapters/${target}/candidates`, "POST", {
                         count,
+                        ignoreMemory: taskMemory.ignoreMemory,
                         inputRevisionId: chapter?.currentRevisionId || "",
                         instructions,
                       }),
@@ -308,6 +323,7 @@ export default function PublishingPanel({
                 <span className="pill">
                   {statusLabel[selected.status] || selected.status}
                 </span>
+                <TaskMemoryUsage run={selected} />
                 <Result value={selected.output.text} />
                 <details>
                   <summary>对照原稿与候选差异</summary>
@@ -385,6 +401,13 @@ export default function PublishingPanel({
                   placeholder="目标读者、出版平台、翻译语言与需要保留的作者声音…"
                 />
               </label>
+              <TaskMemoryControl
+                preference={taskMemory}
+                projectId={detail.project.id}
+                purpose="编辑建议"
+                disabled={working}
+                note="读者、发展编辑、出版策划及翻译可参考偏好；声音分析仅依据原文。"
+              />
               <div className="editorial-roles">
                 <button
                   disabled={working || !target}
@@ -395,6 +418,7 @@ export default function PublishingPanel({
                         "POST",
                         {
                           intentId: id(),
+                          ignoreMemory: taskMemory.ignoreMemory,
                           inputRevisionId: chapter?.currentRevisionId || "",
                           instructions,
                         },
@@ -428,6 +452,9 @@ export default function PublishingPanel({
                           {
                             intentId: id(),
                             taskType: type,
+                            ignoreMemory:
+                              taskMemory.ignoreMemory ||
+                              !!authorMemoryTaskExclusion(type),
                             inputRevisionId: chapter?.currentRevisionId || "",
                             instructions,
                           },
@@ -453,6 +480,7 @@ export default function PublishingPanel({
                 <span className="pill">
                   {statusLabel[selected.status] || selected.status}
                 </span>
+                <TaskMemoryUsage run={selected} />
                 <Result value={selected.output.text || selected.error} />
                 {selected.type === "voice" &&
                   selected.status === "Succeeded" && (

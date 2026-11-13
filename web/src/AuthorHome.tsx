@@ -1,4 +1,4 @@
-import { lazy, Suspense, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -27,6 +27,7 @@ import {
 } from "./api";
 import type { StudioTab } from "./studioApi";
 import "./authorHome.css";
+const WritingProfile = lazy(() => import("./WritingProfile"));
 const Copilot = lazy(() => import("./Copilot"));
 const WritingSkills = lazy(() => import("./WritingSkills"));
 
@@ -420,7 +421,9 @@ export function BookHome({
   onRefresh,
   notify,
   config,
+  styleRequest,
 }: {
+  styleRequest?: number;
   detail: Detail;
   onWrite: (id?: string) => void;
   onLibrary: () => void;
@@ -443,8 +446,15 @@ export function BookHome({
     queryKey: ["studio", pid, "access"],
     queryFn: () => api<{ role: string }>(`/projects/${pid}/access`),
   });
+  const [profileVisited, setProfileVisited] = useState(false);
   const [tab, setTab] = useState<
-      "overview" | "plan" | "characters" | "world" | "chapters" | "skills"
+      | "overview"
+      | "plan"
+      | "characters"
+      | "world"
+      | "chapters"
+      | "skills"
+      | "style"
     >("overview"),
     [editing, setEditing] = useState(false),
     [edit, setEdit] = useState<Brief>({ ...emptyBrief }),
@@ -460,6 +470,12 @@ export function BookHome({
     }>({ name: "", content: "" }),
     [settingOpen, setSettingOpen] = useState(false),
     [planError, setPlanError] = useState("");
+  useEffect(() => {
+    if (styleRequest) setTab("style");
+  }, [styleRequest]);
+  useEffect(() => {
+    if (tab === "style") setProfileVisited(true);
+  }, [tab]);
   const brief = query.data?.brief.data || emptyBrief,
     version = query.data?.brief.version || 0,
     chapters = detail.chapters.filter((c) => !c.deleted),
@@ -501,6 +517,7 @@ export function BookHome({
     { id: "characters", label: "人物", Icon: Users },
     { id: "world", label: "世界与规则", Icon: Layers3 },
     { id: "chapters", label: "卷章目录", Icon: FilePlus2 },
+    { id: "style", label: "文风与写法", Icon: Feather },
     { id: "skills", label: "写作 Skills", Icon: Sparkles },
   ] as const;
   const settingKind = tab === "characters" ? "character" : "world";
@@ -567,6 +584,13 @@ export function BookHome({
       </nav>
       <div className="book-home-layout">
         <section className="book-main">
+          {(tab === "style" || profileVisited) && (
+            <div hidden={tab !== "style"}>
+              <Suspense fallback={<p className="muted">正在打开文风与写法…</p>}>
+                <WritingProfile detail={detail} notify={notify} />
+              </Suspense>
+            </div>
+          )}
           {tab === "skills" && (
             <Suspense fallback={<p className="muted">正在打开写作指南…</p>}>
               <WritingSkills projectId={pid} notify={notify} />
