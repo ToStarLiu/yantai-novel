@@ -172,3 +172,10 @@ Windows便携包0.4.0/schema21实际启动，UI导入原创指南，经包内Pi�
 发行ZIP位于desktop/dist/Yantai-Windows-x64.zip，262848388字节（约250.7MiB），1785文件CRC全通过，SHA-256：`b55e3ecec810953954e713dd8fff19eff5c7dac44ed3a0f404cf5edaca2de6f9`。详见同目录release.json。
 
 工程接入与文学效果分别验收：本轮未正式测试Skill对作者修改时间、长期声音一致性或文学质量的收益；指南可编辑且可按任务选择，不能保证模型逐条遵循或零AI味。
+
+
+## 首次 GitHub 开源发行
+
+2026-11-13，官方仓库[ToStarLiu/yantai-novel](https://github.com/ToStarLiu/yantai-novel)，采用GPL-3.0-only。首次云端回归发现fpdf对Linux字体绝对路径的处理问题，改为Go读取字体字节后注册，新增Unicode/含空格绝对路径、工作目录独立及缺失文件回归；Windows真实PG出版测试与vet通过。公开发行包重新构建且真实EXE导入Skill、Pi读取/规划采用、退出关闭PG和重启保留均通过，回执.local/desktop-github-final.json。
+
+本次公开ZIP包含项目LICENSE/NOTICE和上游运行组件通知，262847866字节、1787个文件CRC通过，SHA-256：`85b0185e5ba4aedc4dd4610f1b9dc8f8f00cdedff13d40c5cbf9f6c0169ee25b`。此公开包替代前文开发阶段同版本的本地ZIP，最新校验元数据随Releases附带release.json。GitHub全量CI执行结果以对应commit的Actions为准。

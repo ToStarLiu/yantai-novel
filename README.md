@@ -69,7 +69,7 @@ pwsh -File scripts/setup-dev.ps1
 pwsh -File scripts/start.ps1
 ```
 
-打开 **http://127.0.0.1:8088**，使用自己配置的账户登录。
+打开 [http://127.0.0.1:8088](http://127.0.0.1:8088)，使用自己配置的账户登录。
 
 - `setup-dev.ps1` 将固定版本的 Go、Node.js、sqlc 与 PostgreSQL 安装到项目内 `.tools/`，不修改永久 PATH，不安装系统数据库服务。
 - `start.ps1` 启动本机数据库、构建 Web 与 Pi、显式应用迁移，再启动服务。后续已有构建可加 `-SkipBuild`。
@@ -100,7 +100,7 @@ docker compose --env-file .env -f deploy/compose.yaml up --build -d
 docker compose --env-file .env -f deploy/compose.yaml ps
 ```
 
-然后访问 **http://127.0.0.1:8088**。便携数据库与 Compose 默认都使用本机 55432 端口，请选择一种方式运行。
+然后访问 [http://127.0.0.1:8088](http://127.0.0.1:8088)。便携数据库与 Compose 默认都使用本机 55432 端口，请选择一种方式运行。
 
 远程部署、HTTPS、反向代理和持久卷说明见 [部署文档](deploy/README.md)。
 
@@ -180,6 +180,8 @@ pwsh -File scripts/backup.ps1
 [备份恢复](deploy/backup-restore.md) · [作品包覆盖范围](docs/release/project-archive.md) · [升级流程](deploy/upgrade.md)
 
 ## Windows 便携桌面
+
+可在 [GitHub Releases](https://github.com/ToStarLiu/yantai-novel/releases) 下载 Windows x64 便携包与校验信息。
 
 桌面包装可携带 PostgreSQL、Go API、Web、Node/Pi 和中文字体。首次运行创建独立数据目录与随机账户并自动登录，菜单可打开数据和登录信息；程序更新时保留作者数据。它不会打包开发者的 `.env` 或作品库。
 

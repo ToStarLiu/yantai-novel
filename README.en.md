@@ -51,7 +51,7 @@ pwsh -File scripts/setup-dev.ps1
 pwsh -File scripts/start.ps1
 ```
 
-Open **http://127.0.0.1:8088** and sign in with your configured credentials.
+Open [http://127.0.0.1:8088](http://127.0.0.1:8088) and sign in with your configured credentials.
 
 - Setup installs pinned Go, Node.js, sqlc, and PostgreSQL tools into `.tools/`. It does not modify the permanent PATH or install a database service.
 - The start script starts the local database, builds the UI and Pi harness, applies explicit migrations, and runs the application. Use `-SkipBuild` for later starts when the existing builds are current.
@@ -82,7 +82,7 @@ docker compose --env-file .env -f deploy/compose.yaml up --build -d
 docker compose --env-file .env -f deploy/compose.yaml ps
 ```
 
-Open **http://127.0.0.1:8088**. Portable development PostgreSQL and Compose both default to local port 55432, so use one at a time. See [deployment](deploy/README.md) for HTTPS, reverse proxies, and persistent volumes.
+Open [http://127.0.0.1:8088](http://127.0.0.1:8088). Portable development PostgreSQL and Compose both default to local port 55432, so use one at a time. See [deployment](deploy/README.md) for HTTPS, reverse proxies, and persistent volumes.
 
 ## Configure an AI provider
 
@@ -160,6 +160,8 @@ Restore uses a new isolated database and quarantines queues that might otherwise
 [Backup and restore](deploy/backup-restore.md) · [Project package coverage](docs/release/project-archive.md) · [Upgrades](deploy/upgrade.md)
 
 ## Windows desktop build
+
+Download the Windows x64 package and checksums from [GitHub Releases](https://github.com/ToStarLiu/yantai-novel/releases).
 
 The portable wrapper can include PostgreSQL, the API, web assets, Node/Pi, and Chinese fonts. First launch creates a separate data directory and a random local account, then signs in automatically. Application updates preserve that data. Developer environment files and book databases are excluded from the package.
 

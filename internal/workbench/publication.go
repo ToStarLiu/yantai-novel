@@ -228,10 +228,16 @@ func bookPDF(p Project, chapters []bookChapter, o PublicationOptions) ([]byte, e
 	if font == "" {
 		return nil, fmt.Errorf("PDF中文字体未找到，请配置PDF_FONT_PATH指向TTF字体")
 	}
+	fontData, err := os.ReadFile(font)
+	if err != nil {
+		return nil, fmt.Errorf("PDF字体不可用：%w", err)
+	}
 	pdf := fpdf.New("P", "mm", "A4", "")
 	pdf.SetMargins(23, 24, 23)
 	pdf.SetAutoPageBreak(true, 22)
-	pdf.AddUTF8Font("body", "", font)
+	// Resolve OS paths ourselves: fpdf treats filename arguments as relative to
+	// its font directory, including configured absolute Unix paths.
+	pdf.AddUTF8FontFromBytes("body", "", fontData)
 	pdf.SetFont("body", "", 11)
 	if pdf.Error() != nil {
 		return nil, fmt.Errorf("PDF字体不可用：%w", pdf.Error())

@@ -5,11 +5,44 @@ import (
 	"bytes"
 	"context"
 	"encoding/xml"
+	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestPublicationPDFConfiguredFontPaths(t *testing.T) {
+	fontData, err := os.ReadFile(filepath.Join("..", "..", "assets", "fonts", "NotoSansSC-Regular.ttf"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Run("absolute path independent of working directory", func(t *testing.T) {
+		dir := t.TempDir()
+		font := filepath.Join(dir, "中文 font.ttf")
+		if err := os.WriteFile(font, fontData, 0600); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("PDF_FONT_PATH", font)
+		t.Chdir(t.TempDir())
+		data, err := bookPDF(Project{Title: "中文作品"}, []bookChapter{{Title: "第一章", Text: "林川左臂受伤，仍握着铜印。"}}, PublicationOptions{Author: "原创作者"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.HasPrefix(data, []byte("%PDF")) || len(data) < 100 {
+			t.Fatal("absolute configured font did not produce a valid PDF")
+		}
+	})
+	t.Run("missing configured font is not silently substituted", func(t *testing.T) {
+		font := filepath.Join(t.TempDir(), "missing.ttf")
+		t.Setenv("PDF_FONT_PATH", font)
+		data, err := bookPDF(Project{Title: "中文作品"}, nil, PublicationOptions{})
+		if !errors.Is(err, os.ErrNotExist) || !strings.Contains(err.Error(), font) || len(data) != 0 {
+			t.Fatalf("expected the configured font read error, got %d bytes, %v", len(data), err)
+		}
+	})
+}
 
 func TestPublicationDOCXEPUBPDFPreserveChineseAndValidPackages(t *testing.T) {
 	s, c := runtimeFixture(t)

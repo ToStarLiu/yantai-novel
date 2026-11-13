@@ -4,7 +4,7 @@
 
 ## 报告安全问题
 
-如果仓库已启用 GitHub 私密漏洞报告，请使用仓库页面提供的 **Report a vulnerability** 入口提交。若该入口不可用，请先创建标题为“请求私密安全沟通渠道”的 Issue，只描述需要联系维护者，不提交漏洞细节；由维护者提供后续私密渠道。本项目未在此声明其他专用邮箱或固定响应时限。
+官方仓库已启用 [GitHub 私密漏洞报告](https://github.com/ToStarLiu/yantai-novel/security/advisories/new)，请使用 **Report a vulnerability** 入口提交。若该入口不可用，请先创建标题为“请求私密安全沟通渠道”的 Issue，只描述需要联系维护者，不提交漏洞细节；由维护者提供后续私密渠道。本项目未在此声明其他专用邮箱或固定响应时限。
 
 私密报告建议包含：
 
