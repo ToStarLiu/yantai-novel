@@ -1,0 +1,125 @@
+.workspace-app .editor-experience {
+  position: relative;
+  max-width: 780px;
+  margin: 0 auto;
+}
+.workspace-app .editor-experience .manuscript {
+  font-size: var(--manuscript-font-size, 18px);
+  line-height: var(--manuscript-line-height, 2.1);
+  font-family: var(--manuscript-font-family);
+  letter-spacing: 0.15px;
+}
+.editor-reading-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  padding: 5px 8px;
+  font-size: 11px;
+  color: #69776b;
+}
+.editor-reading-toggle:hover,
+.editor-reading-toggle.active {
+  background: #e8eee6;
+  color: #354e3b;
+}
+.editor-reading-settings {
+  border: 1px solid var(--line);
+  background: #fffefa;
+  border-radius: 8px;
+  padding: 13px 15px;
+  box-shadow: 0 7px 20px #263a2910;
+  margin: -12px auto 18px;
+}
+.editor-reading-settings header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.editor-reading-settings header small {
+  font-size: 10px;
+  color: #899182;
+  font-weight: 400;
+}
+.editor-reading-settings header button {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  display: flex;
+  padding: 4px;
+}
+.editor-reading-settings label {
+  display: grid;
+  grid-template-columns: 42px 1fr 36px;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+  font-size: 11px;
+}
+.editor-reading-settings label output {
+  grid-column: 3;
+  text-align: right;
+  color: #6b7b65;
+}
+.editor-reading-settings label input {
+  grid-column: 2;
+  grid-row: 1;
+  accent-color: #49644d;
+  box-shadow: none;
+  padding: 0;
+  height: 20px;
+}
+.editor-reading-settings label select {
+  grid-column: 2 / 4;
+  padding: 6px 10px;
+  font-size: 11px;
+}
+.editor-selection-actions {
+  position: fixed;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  border: 1px solid #d4dfd1;
+  border-radius: 8px;
+  background: #fffefa;
+  box-shadow: 0 6px 24px #25392a21;
+  padding: 4px;
+  max-width: calc(100vw - 16px);
+  gap: 1px;
+}
+.editor-selection-actions button {
+  border: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border-radius: 5px;
+  padding: 7px 9px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.editor-selection-actions button:first-child {
+  background: #eaf0e6;
+  color: #3f5d43;
+}
+.editor-selection-actions button:hover {
+  background: #edf2e8;
+}
+@media (max-width: 760px) {
+  .editor-reading-settings header {
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .editor-reading-settings header small {
+    font-size: 9px;
+  }
+  .editor-selection-actions button {
+    padding: 7px 8px;
+  }
+}

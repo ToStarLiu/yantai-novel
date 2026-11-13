@@ -58,8 +58,12 @@ import {
   canApplyCandidate,
 } from "./revisions";
 import Copilot from "./Copilot";
+import type { WritingSkillList } from "./WritingSkills";
+import "./workspaceAssistant.css";
 
 type Props = {
+  hidden?: boolean;
+  composeRequest?: { id: number; text: string };
   chapter: Chapter;
   detail: Detail;
   currentRevisionId: string;
@@ -74,14 +78,15 @@ type Props = {
 };
 type Tab =
   "assistant" | "blueprint" | "settings" | "memory" | "search" | "runs";
-const tabs: { id: Tab; title: string; Icon: typeof Sparkles }[] = [
-  { id: "assistant", title: "灵感助手", Icon: Sparkles },
-  { id: "blueprint", title: "本章章纲", Icon: AlignLeft },
-  { id: "settings", title: "人物设定", Icon: Users },
-  { id: "memory", title: "故事记忆", Icon: Brain },
-  { id: "search", title: "历史检索", Icon: Search },
-  { id: "runs", title: "任务记录", Icon: Activity },
-];
+const tabs: { id: Tab; title: string; label: string; Icon: typeof Sparkles }[] =
+  [
+    { id: "assistant", title: "灵感助手", label: "对话", Icon: Sparkles },
+    { id: "blueprint", title: "本章章纲", label: "章纲", Icon: AlignLeft },
+    { id: "settings", title: "人物设定", label: "设定", Icon: Users },
+    { id: "memory", title: "故事记忆", label: "记忆", Icon: Brain },
+    { id: "search", title: "历史检索", label: "检索", Icon: Search },
+    { id: "runs", title: "任务记录", label: "任务", Icon: Activity },
+  ];
 const taskName: Record<string, string> = {
   draft: "章节起草",
   review: "一致性审稿",
@@ -96,6 +101,33 @@ export default function Assistant(props: Props) {
   const { chapter, detail, notify } = props;
   const [tab, setTab] = useState<Tab>("assistant");
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [contextOpen, setContextOpen] = useState(false);
+  const [copilotActive, setCopilotActive] = useState(false);
+  useEffect(() => {
+    if (!props.composeRequest) return;
+    setTab("assistant");
+    setToolsOpen(false);
+  }, [props.composeRequest?.id]);
+  useEffect(() => {
+    if (copilotActive) setToolsOpen(false);
+  }, [copilotActive]);
+  const memoryContext = useQuery({
+    queryKey: ["state", detail.project.id],
+    queryFn: () => api<StateView>(`/projects/${detail.project.id}/state`),
+    enabled: contextOpen,
+    refetchInterval: contextOpen ? 4000 : false,
+  });
+  const writingSkills = useQuery({
+    queryKey: ["writing-skills", detail.project.id],
+    queryFn: () =>
+      api<WritingSkillList>(`/projects/${detail.project.id}/writing-skills`),
+    staleTime: 5000,
+  });
+  const enabledSkills = writingSkills.data?.items.filter(
+    (skill) =>
+      skill.enabled &&
+      (!skill.taskTypes.length || skill.taskTypes.includes("copilot")),
+  );
   const [instructions, setInstructions] = useState("");
   const [starting, setStarting] = useState(false);
   const [operation, setOperation] = useState("expand");
@@ -187,7 +219,11 @@ export default function Assistant(props: Props) {
     }
   };
   return (
-    <aside className="assistant-pane">
+    <aside
+      className="assistant-pane"
+      hidden={props.hidden}
+      aria-label="章节创作伙伴"
+    >
       <div className="assistant-heading">
         <div>
           <span className="assistant-symbol">
@@ -196,7 +232,8 @@ export default function Assistant(props: Props) {
           <h2>创作伙伴</h2>
         </div>
         <span className="assistant-online">
-          <span className="tiny-dot" /> 随时待命
+          <span className="tiny-dot" />{" "}
+          {copilotActive ? "正在推敲" : "本章创作"}
         </span>
         <button
           className="icon-button assistant-mobile-close"
@@ -206,306 +243,389 @@ export default function Assistant(props: Props) {
           <X size={17} />
         </button>
       </div>
-      <div className="assistant-tabs">
-        {tabs.map(({ id, title, Icon }) => (
+      <nav className="assistant-tabs" aria-label="创作伙伴工具">
+        {tabs.map(({ id, title, label, Icon }) => (
           <button
             key={id}
             className={tab === id ? "active" : ""}
-            onClick={() => setTab(id)}
+            onClick={() => {
+              setTab(id);
+              if (id === "assistant") setToolsOpen(false);
+            }}
             title={title}
             aria-label={title}
+            aria-pressed={tab === id}
           >
-            <Icon size={17} />
-            <span>{title}</span>
+            <Icon size={14} />
+            <span>{label}</span>
           </button>
         ))}
-      </div>
+      </nav>
+      <details
+        className="assistant-source-summary"
+        open={contextOpen}
+        onToggle={(event) => setContextOpen(event.currentTarget.open)}
+      >
+        <summary>
+          <Brain size={13} />
+          <span>
+            本章资料 <small title={chapter.title}>{chapter.title}</small>
+          </span>
+          <ChevronDown size={13} />
+        </summary>
+        <div className="assistant-source-grid">
+          <button onClick={() => setTab("blueprint")} aria-label="查看本章章纲">
+            <AlignLeft size={15} />
+            <span>
+              本章章纲
+              <strong>{chapter.blueprint.trim() ? "已准备" : "待补充"}</strong>
+            </span>
+            <ChevronRight size={12} />
+          </button>
+          <button
+            onClick={() => setTab("settings")}
+            aria-label="查看本书人物与设定"
+          >
+            <Users size={15} />
+            <span>
+              人物与设定<strong>{detail.settings.length} 项</strong>
+            </span>
+            <ChevronRight size={12} />
+          </button>
+          <button
+            onClick={() => setTab("memory")}
+            aria-label="查看已确认故事记忆"
+          >
+            <Brain size={15} />
+            <span>
+              全书确认记忆
+              <strong>
+                {memoryContext.data
+                  ? `${memoryContext.data.facts?.length || 0} 条`
+                  : memoryContext.isError
+                    ? "读取失败"
+                    : "读取中…"}
+              </strong>
+            </span>
+            <ChevronRight size={12} />
+          </button>
+          <div>
+            <Sparkles size={15} />
+            <span>
+              对话写作指南
+              <strong>
+                {enabledSkills
+                  ? `${enabledSkills.length} 项启用`
+                  : writingSkills.isError
+                    ? "读取失败"
+                    : "读取中…"}
+              </strong>
+            </span>
+          </div>
+        </div>
+        <p>这是可查阅资料的概览。对话按需读取，记忆仍受章节与人物视角限制。</p>
+      </details>
       <div
         className={
           "assistant-content " +
-          (tab === "assistant" ? "assistant-chat-content" : "")
+          (tab === "assistant"
+            ? `assistant-chat-content${toolsOpen ? " tools-mode" : ""}`
+            : "")
         }
       >
-        {tab === "assistant" && (
-          <>
-            <Copilot key={detail.project.id} {...props} />
-            <details
-              className="copilot-writing-tools"
-              open={toolsOpen}
-              onToggle={(event) => setToolsOpen(event.currentTarget.open)}
+        <div className="assistant-chat-panel" hidden={tab !== "assistant"}>
+          <div className="assistant-conversation" hidden={toolsOpen}>
+            <Copilot
+              key={detail.project.id}
+              {...props}
+              onBusyChange={setCopilotActive}
+            />
+          </div>
+          <details
+            className="copilot-writing-tools"
+            open={toolsOpen}
+            onToggle={(event) => setToolsOpen(event.currentTarget.open)}
+          >
+            <summary
+              onClick={(event) => {
+                if (copilotActive && !toolsOpen) {
+                  event.preventDefault();
+                  notify(
+                    "对话仍在运行，可先停止回答或等它完成，再打开单次写作工具。",
+                  );
+                }
+              }}
             >
-              <summary>
-                <Sparkles size={14} /> 写作工具{" "}
-                <span>起草 · 审稿 · 选段修订</span>
-              </summary>
-              <div className="copilot-writing-tools-body">
-                <div className="assistant-intro">
-                  <span className="eyebrow">WRITE WITH INTENTION</span>
-                  <h3>下一句，往哪里走？</h3>
-                  <p>以你的章纲为方向，让人物、情节与设定保持连贯。</p>
-                </div>
-                <div className="context-strip">
-                  <Brain size={14} />
+              <Sparkles size={14} /> 写作工具{" "}
+              <span>起草 · 审稿 · 选段修订</span>
+              {toolsOpen && <strong>返回对话</strong>}
+            </summary>
+            <div className="copilot-writing-tools-body">
+              <div className="assistant-intro">
+                <span className="eyebrow">WRITE WITH INTENTION</span>
+                <h3>下一句，往哪里走？</h3>
+                <p>以你的章纲为方向，让人物、情节与设定保持连贯。</p>
+              </div>
+              <div className="context-strip">
+                <Brain size={14} />
+                <span>
+                  {statusLabel[detail.project.health] || detail.project.health}
+                </span>
+                <span className="context-count">
+                  {detail.settings.length} 项设定
+                </span>
+              </div>
+              <label className="instruction-field">
+                这次想怎样推进？
+                <textarea
+                  value={instructions}
+                  onChange={(e) => setInstructions(e.target.value)}
+                  rows={3}
+                  placeholder="例如：收紧节奏，用动作表现不安，停在发现线索时…"
+                />
+              </label>
+              <div className="ai-actions">
+                <button
+                  className="ai-primary-action"
+                  disabled={starting}
+                  onClick={() => void start("draft")}
+                >
+                  <span className="action-icon">
+                    <Sparkles size={19} />
+                  </span>
                   <span>
-                    {statusLabel[detail.project.health] ||
-                      detail.project.health}
+                    <strong>依章纲起草</strong>
+                    <small>生成一份独立候选稿</small>
                   </span>
-                  <span className="context-count">
-                    {detail.settings.length} 项设定
+                  {starting ? (
+                    <LoaderCircle size={17} className="spin" />
+                  ) : (
+                    <ArrowUpRight size={18} />
+                  )}
+                </button>
+                <div className="ai-secondary">
+                  <button
+                    disabled={starting}
+                    onClick={() => void start("review")}
+                  >
+                    <Eye size={17} />
+                    <span>一致性审稿</span>
+                  </button>
+                  <button
+                    disabled={starting || !selectedIssues.length}
+                    onClick={() => void start("revision")}
+                    title={
+                      !selectedIssues.length
+                        ? "先选择审稿问题，再进行定向修订"
+                        : ""
+                    }
+                  >
+                    <PencilIcon />
+                    <span>
+                      定向修订
+                      {selectedIssues.length
+                        ? ` · ${selectedIssues.length}`
+                        : ""}
+                    </span>
+                  </button>
+                </div>
+              </div>
+              <button
+                className="text-button local-lint"
+                onClick={() =>
+                  void props
+                    .flush()
+                    .then((rid) =>
+                      api<Issue[]>(
+                        "/chapters/" + chapter.id + "/lint?revisionId=" + rid,
+                      ),
+                    )
+                    .then(setLocalIssues)
+                    .catch((e) => notify(message(e)))
+                }
+              >
+                <CheckCircle2 size={13} /> 本地规则检查 · 不调用模型
+              </button>
+              {localIssues && (
+                <div className="local-issues">
+                  <span className="section-label">
+                    规则检查 · {localIssues.length} 条提示
+                  </span>
+                  {localIssues.map((issue, i) => (
+                    <div className="issue-card" key={i}>
+                      <span className="pill amber">{issue.kind}</span>
+                      {issue.quote && <blockquote>{issue.quote}</blockquote>}
+                      <p>{issue.explanation}</p>
+                      <small>{issue.suggestedAction}</small>
+                    </div>
+                  ))}
+                  {!localIssues.length && (
+                    <p className="muted small">
+                      没有触发本地规则提示。仍请自行复核叙事与风格。
+                    </p>
+                  )}
+                </div>
+              )}
+              <div className="rewrite-tools">
+                <div className="row-between">
+                  <span className="section-label">选段推敲</span>
+                  <span className="muted small">
+                    {props.selection
+                      ? `已选 ${props.selection.length} 字`
+                      : "在正文中选中一段"}
                   </span>
                 </div>
-                <label className="instruction-field">
-                  这次想怎样推进？
-                  <textarea
-                    value={instructions}
-                    onChange={(e) => setInstructions(e.target.value)}
-                    rows={3}
-                    placeholder="例如：收紧节奏，用动作表现不安，停在发现线索时…"
-                  />
-                </label>
-                <div className="ai-actions">
-                  <button
-                    className="ai-primary-action"
-                    disabled={starting}
-                    onClick={() => void start("draft")}
+                <div className="rewrite-row">
+                  <select
+                    aria-label="选段改写方式"
+                    value={operation}
+                    onChange={(e) => setOperation(e.target.value)}
                   >
-                    <span className="action-icon">
-                      <Sparkles size={19} />
-                    </span>
-                    <span>
-                      <strong>依章纲起草</strong>
-                      <small>生成一份独立候选稿</small>
-                    </span>
-                    {starting ? (
-                      <LoaderCircle size={17} className="spin" />
-                    ) : (
-                      <ArrowUpRight size={18} />
-                    )}
+                    <option value="expand">扩写细节</option>
+                    <option value="compress">压缩冗余</option>
+                    <option value="polish">润色表达</option>
+                  </select>
+                  <button
+                    className="button"
+                    disabled={starting || !props.selection}
+                    onClick={() => void start("rewrite")}
+                  >
+                    生成候选
                   </button>
-                  <div className="ai-secondary">
-                    <button
-                      disabled={starting}
-                      onClick={() => void start("review")}
-                    >
-                      <Eye size={17} />
-                      <span>一致性审稿</span>
-                    </button>
-                    <button
-                      disabled={starting || !selectedIssues.length}
-                      onClick={() => void start("revision")}
-                      title={
-                        !selectedIssues.length
-                          ? "先选择审稿问题，再进行定向修订"
-                          : ""
-                      }
-                    >
-                      <PencilIcon />
-                      <span>
-                        定向修订
-                        {selectedIssues.length
-                          ? ` · ${selectedIssues.length}`
-                          : ""}
-                      </span>
-                    </button>
-                  </div>
                 </div>
                 <button
-                  className="text-button local-lint"
-                  onClick={() =>
-                    void props
-                      .flush()
-                      .then((rid) =>
-                        api<Issue[]>(
-                          "/chapters/" + chapter.id + "/lint?revisionId=" + rid,
-                        ),
-                      )
-                      .then(setLocalIssues)
-                      .catch((e) => notify(message(e)))
-                  }
+                  className="text-button"
+                  disabled={starting || !props.currentRevisionId}
+                  onClick={() => void start("handoff")}
                 >
-                  <CheckCircle2 size={13} /> 本地规则检查 · 不调用模型
+                  <ArrowRight size={12} /> 生成场景交接摘要
                 </button>
-                {localIssues && (
-                  <div className="local-issues">
-                    <span className="section-label">
-                      规则检查 · {localIssues.length} 条提示
-                    </span>
-                    {localIssues.map((issue, i) => (
-                      <div className="issue-card" key={i}>
-                        <span className="pill amber">{issue.kind}</span>
-                        {issue.quote && <blockquote>{issue.quote}</blockquote>}
-                        <p>{issue.explanation}</p>
-                        <small>{issue.suggestedAction}</small>
-                      </div>
-                    ))}
-                    {!localIssues.length && (
-                      <p className="muted small">
-                        没有触发本地规则提示。仍请自行复核叙事与风格。
-                      </p>
-                    )}
-                  </div>
-                )}
-                <div className="rewrite-tools">
-                  <div className="row-between">
-                    <span className="section-label">选段推敲</span>
-                    <span className="muted small">
-                      {props.selection
-                        ? `已选 ${props.selection.length} 字`
-                        : "在正文中选中一段"}
-                    </span>
-                  </div>
-                  <div className="rewrite-row">
-                    <select
-                      aria-label="选段改写方式"
-                      value={operation}
-                      onChange={(e) => setOperation(e.target.value)}
-                    >
-                      <option value="expand">扩写细节</option>
-                      <option value="compress">压缩冗余</option>
-                      <option value="polish">润色表达</option>
-                    </select>
-                    <button
-                      className="button"
-                      disabled={starting || !props.selection}
-                      onClick={() => void start("rewrite")}
-                    >
-                      生成候选
-                    </button>
-                  </div>
-                  <button
-                    className="text-button"
-                    disabled={starting || !props.currentRevisionId}
-                    onClick={() => void start("handoff")}
-                  >
-                    <ArrowRight size={12} /> 生成场景交接摘要
-                  </button>
-                </div>
-                {ownRuns.length > 1 && (
+              </div>
+              {ownRuns.length > 1 && (
+                <select
+                  className="run-selector"
+                  aria-label="切换本章候选任务"
+                  value={run?.id || ""}
+                  onChange={(e) => setSelectedRun(e.target.value)}
+                >
+                  {ownRuns.map((r) => (
+                    <option value={r.id} key={r.id}>
+                      {taskName[r.type] || r.type} · {dateTime(r.createdAt)} ·{" "}
+                      {statusLabel[r.status] || r.status}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <details className="generation-settings">
+                <summary>本次生成策略与角色</summary>
+                <label className="check-label">
+                  <input
+                    type="checkbox"
+                    checked={useCache}
+                    onChange={(e) => setUseCache(e.target.checked)}
+                  />{" "}
+                  允许复用相同版本、模型与输入的缓存
+                </label>
+                <label>
+                  采样温度（留空用模型默认）
+                  <input
+                    type="number"
+                    min="0"
+                    max="2"
+                    step=".1"
+                    value={temperature}
+                    onChange={(e) => setTemperature(e.target.value)}
+                  />
+                </label>
+                <label>
+                  Agent 职责
                   <select
-                    className="run-selector"
-                    aria-label="切换本章候选任务"
-                    value={run?.id || ""}
-                    onChange={(e) => setSelectedRun(e.target.value)}
+                    value={agentID}
+                    onChange={(e) => setAgentID(e.target.value)}
                   >
-                    {ownRuns.map((r) => (
-                      <option value={r.id} key={r.id}>
-                        {taskName[r.type] || r.type} · {dateTime(r.createdAt)} ·{" "}
-                        {statusLabel[r.status] || r.status}
+                    <option value="">按任务默认</option>
+                    {agentOptions.data?.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name} · {a.taskType}
                       </option>
                     ))}
                   </select>
-                )}
-                <details className="generation-settings">
-                  <summary>本次生成策略与角色</summary>
-                  <label className="check-label">
-                    <input
-                      type="checkbox"
-                      checked={useCache}
-                      onChange={(e) => setUseCache(e.target.checked)}
-                    />{" "}
-                    允许复用相同版本、模型与输入的缓存
-                  </label>
-                  <label>
-                    采样温度（留空用模型默认）
-                    <input
-                      type="number"
-                      min="0"
-                      max="2"
-                      step=".1"
-                      value={temperature}
-                      onChange={(e) => setTemperature(e.target.value)}
-                    />
-                  </label>
-                  <label>
-                    Agent 职责
-                    <select
-                      value={agentID}
-                      onChange={(e) => setAgentID(e.target.value)}
-                    >
-                      <option value="">按任务默认</option>
-                      {agentOptions.data?.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.name} · {a.taskType}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    Prompt 版本
-                    <select
-                      value={promptID}
-                      onChange={(e) => setPromptID(e.target.value)}
-                    >
-                      <option value="">按任务默认</option>
-                      {promptOptions.data?.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} · {p.taskType} v{p.version}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    压缩上下文 ID（可选）
-                    <input
-                      value={summaryID}
-                      onChange={(e) => setSummaryID(e.target.value)}
-                      placeholder="在工作室创建后粘贴 ID"
-                    />
-                  </label>
-                  <label>
-                    Top P（留空用模型默认）
-                    <input
-                      type="number"
-                      min="0"
-                      max="1"
-                      step=".05"
-                      value={topP}
-                      onChange={(e) => setTopP(e.target.value)}
-                    />
-                  </label>
-                  <label>
-                    本次 MCP 只读调用（可选 JSON 数组）
-                    <textarea
-                      rows={3}
-                      value={mcpInput}
-                      onChange={(e) => setMCPInput(e.target.value)}
-                      placeholder='[{"configId":"服务ID","name":"工具名","arguments":{}}]'
-                    />
-                  </label>
-                  <p>
-                    所选角色和模板必须匹配任务类型。MCP 调用须在服务白名单和
-                    Agent 权限中同时授权。压缩内容仍校验作品、版本与未来可见性。
-                  </p>
-                </details>
-                <div className="model-disclosure">
-                  <Info size={12} />
-                  <p>
-                    {props.config?.externalModel
-                      ? "任务会向已配置的模型服务发送本章及相关上下文。"
-                      : "当前模型为功能测试模式。"}{" "}
-                    <span>{props.config?.model || "读取模型配置中"}</span>
-                  </p>
-                </div>
-                {run && (
-                  <RunCard
-                    run={run}
-                    currentRevisionId={props.currentRevisionId}
-                    currentText={props.currentText}
-                    onApply={props.onApply}
-                    notify={notify}
-                    onSelectIssues={setSelectedIssues}
-                    selectedIssues={selectedIssues}
-                    onRefresh={() =>
-                      void qc.invalidateQueries({
-                        queryKey: ["runs", detail.project.id],
-                      })
-                    }
+                </label>
+                <label>
+                  Prompt 版本
+                  <select
+                    value={promptID}
+                    onChange={(e) => setPromptID(e.target.value)}
+                  >
+                    <option value="">按任务默认</option>
+                    {promptOptions.data?.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} · {p.taskType} v{p.version}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  压缩上下文 ID（可选）
+                  <input
+                    value={summaryID}
+                    onChange={(e) => setSummaryID(e.target.value)}
+                    placeholder="在工作室创建后粘贴 ID"
                   />
-                )}
+                </label>
+                <label>
+                  Top P（留空用模型默认）
+                  <input
+                    type="number"
+                    min="0"
+                    max="1"
+                    step=".05"
+                    value={topP}
+                    onChange={(e) => setTopP(e.target.value)}
+                  />
+                </label>
+                <label>
+                  本次 MCP 只读调用（可选 JSON 数组）
+                  <textarea
+                    rows={3}
+                    value={mcpInput}
+                    onChange={(e) => setMCPInput(e.target.value)}
+                    placeholder='[{"configId":"服务ID","name":"工具名","arguments":{}}]'
+                  />
+                </label>
+                <p>
+                  所选角色和模板必须匹配任务类型。MCP 调用须在服务白名单和 Agent
+                  权限中同时授权。压缩内容仍校验作品、版本与未来可见性。
+                </p>
+              </details>
+              <div className="model-disclosure">
+                <Info size={12} />
+                <p>
+                  {props.config?.externalModel
+                    ? "任务会向已配置的模型服务发送本章及相关上下文。"
+                    : "当前模型为功能测试模式。"}{" "}
+                  <span>{props.config?.model || "读取模型配置中"}</span>
+                </p>
               </div>
-            </details>
-          </>
-        )}
+              {run && (
+                <RunCard
+                  run={run}
+                  currentRevisionId={props.currentRevisionId}
+                  currentText={props.currentText}
+                  onApply={props.onApply}
+                  notify={notify}
+                  onSelectIssues={setSelectedIssues}
+                  selectedIssues={selectedIssues}
+                  onRefresh={() =>
+                    void qc.invalidateQueries({
+                      queryKey: ["runs", detail.project.id],
+                    })
+                  }
+                />
+              )}
+            </div>
+          </details>
+        </div>
         {tab === "blueprint" && (
           <Blueprint
             chapter={chapter}
@@ -570,8 +690,10 @@ export default function Assistant(props: Props) {
                 }
                 onOpen={() => {
                   setSelectedRun(r.id);
-                  if (r.chapterId === chapter.id) setTab("assistant");
-                  else
+                  if (r.chapterId === chapter.id) {
+                    setToolsOpen(true);
+                    setTab("assistant");
+                  } else
                     notify(
                       "这是其他章节的任务，可查看记录；请先打开对应章节再采用。",
                     );

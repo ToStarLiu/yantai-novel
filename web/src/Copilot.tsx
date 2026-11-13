@@ -53,6 +53,8 @@ import type { WritingSkillList } from "./WritingSkills";
 import "./copilot.css";
 
 type Props = {
+  composeRequest?: { id: number; text: string };
+  onBusyChange?: (busy: boolean) => void;
   scope?: "book" | "chapter";
   briefVersion?: number;
   artifactReady?: boolean;
@@ -123,6 +125,19 @@ export default function Copilot(props: Props) {
     [conversation.data?.turns],
   );
   const active = turns.find((turn) => copilotBusy(turn.status));
+  useEffect(() => {
+    props.onBusyChange?.(working || !!active);
+  }, [working, !!active, props.onBusyChange]);
+  useEffect(() => {
+    if (!props.composeRequest) return;
+    setIncludeSelection(true);
+    const requestText = props.composeRequest.text;
+    setDraft((current) =>
+      current.trim() ? `${current}\n\n${requestText}` : requestText,
+    );
+    const frame = requestAnimationFrame(() => input.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [props.composeRequest?.id]);
   const unreadable = conversation.isError;
   useEffect(() => {
     if (!lists.data) return;
@@ -277,7 +292,10 @@ export default function Copilot(props: Props) {
   };
 
   return (
-    <section className="copilot" aria-label="小说 Copilot">
+    <section
+      className={`copilot${book ? " copilot-book" : " copilot-chapter"}`}
+      aria-label="小说 Copilot"
+    >
       <div className="copilot-toolbar">
         <button
           className="copilot-session-title"
@@ -333,7 +351,9 @@ export default function Copilot(props: Props) {
           {!lists.data?.length && <p>发出第一条消息，这段对话会留在作品中。</p>}
         </div>
       )}
-      <div className="copilot-context">
+      <div
+        className={`copilot-context${book ? "" : " copilot-context-chapter"}`}
+      >
         <span title={props.chapter.title}>
           <FileText size={12} />
           {props.chapter.title}
@@ -577,7 +597,7 @@ export default function Copilot(props: Props) {
           )}
         </div>
       </form>
-      <p className="copilot-model">
+      <p className="copilot-model" title={props.config?.model || "读取配置中"}>
         {props.config?.externalModel ? "使用已配置模型" : "演示模型"} ·{" "}
         {props.config?.model || "读取配置中"} · 每次修改由你采用
       </p>
