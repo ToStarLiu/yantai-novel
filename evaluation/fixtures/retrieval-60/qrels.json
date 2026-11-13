@@ -1,0 +1,546 @@
+{
+  "schemaVersion": 1,
+  "fixtureVersion": "retrieval-60-v1",
+  "qrels": [
+    {
+      "questionId": "q01",
+      "evidence": [
+        {
+          "source": "chapters/01",
+          "chapterId": "01",
+          "quote": "第1夜，林川与沈月来到北岸磨坊。"
+        }
+      ]
+    },
+    {
+      "questionId": "q02",
+      "evidence": [
+        {
+          "source": "chapters/01",
+          "chapterId": "01",
+          "quote": "当夜的异常是风铃断线，二人把经过记在旅册上。"
+        }
+      ]
+    },
+    {
+      "questionId": "q03",
+      "evidence": [
+        {
+          "source": "chapters/02",
+          "chapterId": "02",
+          "quote": "第2夜，林川与沈月来到松岭驿站。"
+        }
+      ]
+    },
+    {
+      "questionId": "q04",
+      "evidence": [
+        {
+          "source": "chapters/02",
+          "chapterId": "02",
+          "quote": "当夜的异常是驿马脱缰，二人把经过记在旅册上。"
+        }
+      ]
+    },
+    {
+      "questionId": "q05",
+      "evidence": [
+        {
+          "source": "chapters/03",
+          "chapterId": "03",
+          "quote": "第3夜，林川与沈月来到枯井村口。"
+        }
+      ]
+    },
+    {
+      "questionId": "q06",
+      "evidence": [
+        {
+          "source": "chapters/03",
+          "chapterId": "03",
+          "quote": "当夜的异常是枯井回声，二人把经过记在旅册上。"
+        }
+      ]
+    },
+    {
+      "questionId": "q07",
+      "evidence": [
+        {
+          "source": "chapters/04",
+          "chapterId": "04",
+          "quote": "第4夜，林川与沈月来到白石渡口。"
+        }
+      ]
+    },
+    {
+      "questionId": "q08",
+      "evidence": [
+        {
+          "source": "chapters/04",
+          "chapterId": "04",
+          "quote": "当夜的异常是白帆搁浅，二人把经过记在旅册上。"
+        }
+      ]
+    },
+    {
+      "questionId": "q09",
+      "evidence": [
+        {
+          "source": "chapters/05",
+          "chapterId": "05",
+          "quote": "第5夜，林川与沈月来到青瓦药铺。"
+        }
+      ]
+    },
+    {
+      "questionId": "q10",
+      "evidence": [
+        {
+          "source": "chapters/05",
+          "chapterId": "05",
+          "quote": "当夜的异常是药柜暗格，二人把经过记在旅册上。"
+        }
+      ]
+    },
+    {
+      "questionId": "q11",
+      "evidence": [
+        {
+          "source": "chapters/06",
+          "chapterId": "06",
+          "quote": "第6夜，林川与沈月来到柳河码头。"
+        }
+      ]
+    },
+    {
+      "questionId": "q12",
+      "evidence": [
+        {
+          "source": "chapters/06",
+          "chapterId": "06",
+          "quote": "当夜的异常是渡船失火，二人把经过记在旅册上。"
+        }
+      ]
+    },
+    {
+      "questionId": "q13",
+      "evidence": [
+        {
+          "source": "chapters/07",
+          "chapterId": "07",
+          "quote": "第7夜，林川与沈月来到石门山道。"
+        }
+      ]
+    },
+    {
+      "questionId": "q14",
+      "evidence": [
+        {
+          "source": "chapters/07",
+          "chapterId": "07",
+          "quote": "当夜的异常是山石塌落，二人把经过记在旅册上。"
+        }
+      ]
+    },
+    {
+      "questionId": "q15",
+      "evidence": [
+        {
+          "source": "chapters/08",
+          "chapterId": "08",
+          "quote": "第8夜，林川与沈月来到银杏书院。"
+        }
+      ]
+    },
+    {
+      "questionId": "q16",
+      "evidence": [
+        {
+          "source": "chapters/08",
+          "chapterId": "08",
+          "quote": "当夜的异常是册页缺角，二人把经过记在旅册上。"
+        }
+      ]
+    },
+    {
+      "questionId": "q17",
+      "evidence": [
+        {
+          "source": "chapters/09",
+          "chapterId": "09",
+          "quote": "第9夜，林川与沈月来到东城粮仓。"
+        }
+      ]
+    },
+    {
+      "questionId": "q18",
+      "evidence": [
+        {
+          "source": "chapters/09",
+          "chapterId": "09",
+          "quote": "当夜的异常是粮袋漏米，二人把经过记在旅册上。"
+        }
+      ]
+    },
+    {
+      "questionId": "q19",
+      "evidence": [
+        {
+          "source": "chapters/10",
+          "chapterId": "10",
+          "quote": "第10夜，林川与沈月来到黄沙关隘。"
+        }
+      ]
+    },
+    {
+      "questionId": "q20",
+      "evidence": [
+        {
+          "source": "chapters/10",
+          "chapterId": "10",
+          "quote": "当夜的异常是关印失踪，二人把经过记在旅册上。"
+        }
+      ]
+    },
+    {
+      "questionId": "q21",
+      "evidence": [
+        {
+          "source": "chapters/11",
+          "chapterId": "11",
+          "quote": "第11夜，林川与沈月来到深谷吊桥。"
+        }
+      ]
+    },
+    {
+      "questionId": "q22",
+      "evidence": [
+        {
+          "source": "chapters/11",
+          "chapterId": "11",
+          "quote": "当夜的异常是吊桥结冰，二人把经过记在旅册上。"
+        }
+      ]
+    },
+    {
+      "questionId": "q23",
+      "evidence": [
+        {
+          "source": "chapters/12",
+          "chapterId": "12",
+          "quote": "第12夜，林川与沈月来到南城钟楼。"
+        }
+      ]
+    },
+    {
+      "questionId": "q24",
+      "evidence": [
+        {
+          "source": "chapters/12",
+          "chapterId": "12",
+          "quote": "当夜的异常是钟槌坠落，二人把经过记在旅册上。"
+        }
+      ]
+    },
+    {
+      "questionId": "q25",
+      "evidence": [
+        {
+          "source": "chapters/13",
+          "chapterId": "13",
+          "quote": "第13夜，林川与沈月来到红枫茶棚。"
+        }
+      ]
+    },
+    {
+      "questionId": "q26",
+      "evidence": [
+        {
+          "source": "chapters/13",
+          "chapterId": "13",
+          "quote": "当夜的异常是茶盏裂纹，二人把经过记在旅册上。"
+        }
+      ]
+    },
+    {
+      "questionId": "q27",
+      "evidence": [
+        {
+          "source": "chapters/14",
+          "chapterId": "14",
+          "quote": "第14夜，林川与沈月来到芦苇浅滩。"
+        }
+      ]
+    },
+    {
+      "questionId": "q28",
+      "evidence": [
+        {
+          "source": "chapters/14",
+          "chapterId": "14",
+          "quote": "当夜的异常是水鸟惊飞，二人把经过记在旅册上。"
+        }
+      ]
+    },
+    {
+      "questionId": "q29",
+      "evidence": [
+        {
+          "source": "chapters/15",
+          "chapterId": "15",
+          "quote": "第15夜，林川与沈月来到积雪岗亭。"
+        }
+      ]
+    },
+    {
+      "questionId": "q30",
+      "evidence": [
+        {
+          "source": "chapters/15",
+          "chapterId": "15",
+          "quote": "当夜的异常是岗哨熄灯，二人把经过记在旅册上。"
+        }
+      ]
+    },
+    {
+      "questionId": "q31",
+      "evidence": [
+        {
+          "source": "chapters/01",
+          "chapterId": "01",
+          "quote": "第1夜，林川与沈月来到北岸磨坊。"
+        }
+      ]
+    },
+    {
+      "questionId": "q32",
+      "evidence": [
+        {
+          "source": "chapters/02",
+          "chapterId": "02",
+          "quote": "第2夜，林川与沈月来到松岭驿站。"
+        }
+      ]
+    },
+    {
+      "questionId": "q33",
+      "evidence": [
+        {
+          "source": "chapters/09",
+          "chapterId": "09",
+          "quote": "第9夜，林川与沈月来到东城粮仓。"
+        }
+      ]
+    },
+    {
+      "questionId": "q34",
+      "evidence": [
+        {
+          "source": "chapters/03",
+          "chapterId": "03",
+          "quote": "沈月记住口令“寒松”，没有告诉林川。"
+        }
+      ]
+    },
+    {
+      "questionId": "q35",
+      "evidence": [
+        {
+          "source": "chapters/06",
+          "chapterId": "06",
+          "quote": "沈月记住口令“石燕”，没有告诉林川。"
+        }
+      ]
+    },
+    {
+      "questionId": "q36",
+      "evidence": []
+    },
+    {
+      "questionId": "q37",
+      "evidence": []
+    },
+    {
+      "questionId": "q38",
+      "evidence": []
+    },
+    {
+      "questionId": "q39",
+      "evidence": []
+    },
+    {
+      "questionId": "q40",
+      "evidence": []
+    },
+    {
+      "questionId": "q41",
+      "evidence": [
+        {
+          "source": "chapters/16",
+          "chapterId": "16",
+          "quote": "第16夜，林川与沈月来到竹林寺院。"
+        }
+      ]
+    },
+    {
+      "questionId": "q42",
+      "evidence": [
+        {
+          "source": "chapters/16",
+          "chapterId": "16",
+          "quote": "当夜的异常是竹笛停声，二人把经过记在旅册上。"
+        }
+      ]
+    },
+    {
+      "questionId": "q43",
+      "evidence": [
+        {
+          "source": "chapters/17",
+          "chapterId": "17",
+          "quote": "第17夜，林川与沈月来到西门客栈。"
+        }
+      ]
+    },
+    {
+      "questionId": "q44",
+      "evidence": [
+        {
+          "source": "chapters/17",
+          "chapterId": "17",
+          "quote": "当夜的异常是客房空锁，二人把经过记在旅册上。"
+        }
+      ]
+    },
+    {
+      "questionId": "q45",
+      "evidence": [
+        {
+          "source": "chapters/18",
+          "chapterId": "18",
+          "quote": "第18夜，林川与沈月来到古城水闸。"
+        }
+      ]
+    },
+    {
+      "questionId": "q46",
+      "evidence": [
+        {
+          "source": "chapters/18",
+          "chapterId": "18",
+          "quote": "当夜的异常是水闸倒流，二人把经过记在旅册上。"
+        }
+      ]
+    },
+    {
+      "questionId": "q47",
+      "evidence": [
+        {
+          "source": "chapters/19",
+          "chapterId": "19",
+          "quote": "第19夜，林川与沈月来到青铜地窖。"
+        }
+      ]
+    },
+    {
+      "questionId": "q48",
+      "evidence": [
+        {
+          "source": "chapters/19",
+          "chapterId": "19",
+          "quote": "当夜的异常是地窖敲击，二人把经过记在旅册上。"
+        }
+      ]
+    },
+    {
+      "questionId": "q49",
+      "evidence": [
+        {
+          "source": "chapters/20",
+          "chapterId": "20",
+          "quote": "第20夜，林川与沈月来到王都城门。"
+        }
+      ]
+    },
+    {
+      "questionId": "q50",
+      "evidence": [
+        {
+          "source": "chapters/20",
+          "chapterId": "20",
+          "quote": "当夜的异常是城门闭锁，二人把经过记在旅册上。"
+        }
+      ]
+    },
+    {
+      "questionId": "q51",
+      "evidence": [
+        {
+          "source": "chapters/20",
+          "chapterId": "20",
+          "quote": "第20夜，林川与沈月来到王都城门。"
+        }
+      ]
+    },
+    {
+      "questionId": "q52",
+      "evidence": [
+        {
+          "source": "chapters/09",
+          "chapterId": "09",
+          "quote": "沈月记住口令“春雷”，没有告诉林川。"
+        }
+      ]
+    },
+    {
+      "questionId": "q53",
+      "evidence": [
+        {
+          "source": "chapters/12",
+          "chapterId": "12",
+          "quote": "沈月记住口令“晓月”，没有告诉林川。"
+        }
+      ]
+    },
+    {
+      "questionId": "q54",
+      "evidence": [
+        {
+          "source": "chapters/15",
+          "chapterId": "15",
+          "quote": "沈月记住口令“远山”，没有告诉林川。"
+        }
+      ]
+    },
+    {
+      "questionId": "q55",
+      "evidence": [
+        {
+          "source": "chapters/18",
+          "chapterId": "18",
+          "quote": "沈月记住口令“暮雨”，没有告诉林川。"
+        }
+      ]
+    },
+    {
+      "questionId": "q56",
+      "evidence": []
+    },
+    {
+      "questionId": "q57",
+      "evidence": []
+    },
+    {
+      "questionId": "q58",
+      "evidence": []
+    },
+    {
+      "questionId": "q59",
+      "evidence": []
+    },
+    {
+      "questionId": "q60",
+      "evidence": []
+    }
+  ]
+}

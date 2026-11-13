@@ -1,0 +1,1 @@
+CREATE TABLE wb_preferences(project_id text PRIMARY KEY REFERENCES wb_projects(id) ON DELETE CASCADE,max_cost numeric,currency text NOT NULL DEFAULT '',max_output_tokens integer NOT NULL DEFAULT 3000,updated_at timestamptz NOT NULL DEFAULT now());

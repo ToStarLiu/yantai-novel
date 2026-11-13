@@ -1,0 +1,226 @@
+{
+  "schemaVersion": "1",
+  "fixtureVersion": "bridge-3-v1",
+  "evaluationOnly": true,
+  "instructions": "仅供评分器和人工复核使用；不得作为写作、审稿或事实问答的模型输入。questions基于三章权威正文；contradictions基于01、02前文和互斥的第三章候选。",
+  "entityIds": ["lin-chuan", "shen-yue", "bronze-seal", "seal-origin"],
+  "questions": [
+    {
+      "id": "q01",
+      "question": "林川在断桥边伤到了哪一条手臂？",
+      "answerable": true,
+      "answer": "左臂。",
+      "entityIds": ["lin-chuan"],
+      "knownBy": ["lin-chuan", "shen-yue"],
+      "unknownBy": [],
+      "firstRevealedAt": {"chapterId": "01", "sceneOrder": 1},
+      "evidence": [
+        {"source": "chapters/01.md", "quote": "木刺划开了他的左臂。"},
+        {"source": "chapters/01.md", "quote": "沈月帮他重新包扎，只说伤口需要休养，没有许诺何时能好。"}
+      ]
+    },
+    {
+      "id": "q02",
+      "question": "截至第三章结束，唯一的铜印由谁持有，是否已经转交？",
+      "answerable": true,
+      "answer": "铜印由林川持有，暂放在自己手边，没有转交给沈月。",
+      "entityIds": ["lin-chuan", "shen-yue", "bronze-seal"],
+      "knownBy": ["lin-chuan", "shen-yue"],
+      "unknownBy": [],
+      "firstRevealedAt": {"chapterId": "01", "sceneOrder": 1},
+      "evidence": [
+        {"source": "chapters/01.md", "quote": "附近再没有第二枚铜印，林川把这唯一的一枚收进胸前的内袋。"},
+        {"source": "chapters/03.md", "quote": "铜印仍归林川持有，暂放桌边也不表示转交。"}
+      ]
+    },
+    {
+      "id": "q03",
+      "question": "叙述者向读者揭示的铜印真实来历是什么？",
+      "answerable": true,
+      "answer": "铜印是王都司钥署第七库遗失的验封印。",
+      "entityIds": ["bronze-seal", "seal-origin"],
+      "knownBy": ["shen-yue"],
+      "unknownBy": ["lin-chuan"],
+      "firstRevealedAt": {"chapterId": "02", "sceneOrder": 1},
+      "knowledgeAcquiredAt": [{"characterId": "shen-yue", "chapterId": "02", "sceneOrder": 1, "sourceKind": "recognition-from-prior-experience"}],
+      "evidence": [
+        {"source": "chapters/02.md", "quote": "铜印确是王都司钥署第七库遗失的验封印。"}
+      ]
+    },
+    {
+      "id": "q04",
+      "question": "沈月为什么能够认出铜印的真实来历？",
+      "answerable": true,
+      "answer": "沈月从前在司钥署抄录册簿，描过库印的缺损，能凭印纽下的缺口认出它。",
+      "entityIds": ["shen-yue", "bronze-seal", "seal-origin"],
+      "knownBy": ["shen-yue"],
+      "unknownBy": ["lin-chuan"],
+      "firstRevealedAt": {"chapterId": "02", "sceneOrder": 1},
+      "evidence": [
+        {"source": "chapters/02.md", "quote": "沈月从前在司钥署抄录册簿，曾逐一描过库印的缺损，她一眼便认出了它。"},
+        {"source": "chapters/02.md", "quote": "这层来历至此向读者揭示，林川却没有听到她心里的回忆。"}
+      ]
+    },
+    {
+      "id": "q05",
+      "question": "林川从沈月那里实际获知了哪些铜印来历信息，他是否知道所属机构和用途？",
+      "answerable": true,
+      "answer": "他只获知铜印与王都有关，不知道司钥署、第七库和验封用途；读者已知的真相不能算作林川已知。",
+      "entityIds": ["lin-chuan", "shen-yue", "seal-origin"],
+      "knownBy": ["lin-chuan", "shen-yue"],
+      "unknownBy": [],
+      "firstRevealedAt": {"chapterId": "02", "sceneOrder": 1},
+      "knowledgeAcquiredAt": [{"characterId": "lin-chuan", "chapterId": "02", "sceneOrder": 1, "sourceKind": "dialogue", "scope": "与王都有关"}],
+      "evidence": [
+        {"source": "chapters/02.md", "quote": "我只能告诉你，它与王都有关。"},
+        {"source": "chapters/02.md", "quote": "林川此时只从她那里获知“与王都有关”，并不知道铜印真正的所属机构和用途。"},
+        {"source": "chapters/03.md", "quote": "沈月没有补充来历，司钥署和第七库的名字都没有出现在二人的对话中。"}
+      ]
+    },
+    {
+      "id": "q06",
+      "question": "林川对铜印持有什么错误信念，它是否已成为客观事实？",
+      "answerable": true,
+      "answer": "林川把铜印当作商队或京商的过桥凭牌。这是错误猜测，不能写成客观事实。",
+      "entityIds": ["lin-chuan", "bronze-seal", "seal-origin"],
+      "knownBy": ["shen-yue"],
+      "unknownBy": ["lin-chuan"],
+      "firstRevealedAt": {"chapterId": "01", "sceneOrder": 1},
+      "belief": {"characterId": "lin-chuan", "secretId": "seal-origin", "value": "商队过桥凭牌", "truthStatus": "False", "recognizedFalseBy": ["shen-yue"], "acquiredAt": {"chapterId": "01", "sceneOrder": 1}},
+      "evidence": [
+        {"source": "chapters/01.md", "quote": "在他看来，这不过是商队过桥时用的旧凭牌，丢在这里的人大概早已走远。"},
+        {"source": "chapters/02.md", "quote": "他继续把铜印当作商队凭牌；沈月听出了这个错误猜测，却没有当场纠正。"}
+      ]
+    },
+    {
+      "id": "q07",
+      "question": "截至第三章结束，木箱是否已经破封或打开？",
+      "answerable": true,
+      "answer": "没有。二人只做好准备，封蜡未破、箱盖未开。",
+      "entityIds": ["lin-chuan", "shen-yue"],
+      "knownBy": ["lin-chuan", "shen-yue"],
+      "unknownBy": [],
+      "firstRevealedAt": {"chapterId": "01", "sceneOrder": 1},
+      "evidence": [
+        {"source": "chapters/03.md", "quote": "两人准备开箱，但在这一章结束时还没有动手破封，更没有掀开箱盖。"}
+      ]
+    },
+    {
+      "id": "q08",
+      "question": "第三章中林川和沈月身在何处？",
+      "answerable": true,
+      "answer": "旧桥北岸的废磨坊。",
+      "entityIds": ["lin-chuan", "shen-yue"],
+      "knownBy": ["lin-chuan", "shen-yue"],
+      "unknownBy": [],
+      "firstRevealedAt": {"chapterId": "01", "sceneOrder": 1},
+      "evidence": [
+        {"source": "chapters/03.md", "quote": "林川和沈月都留在旧桥北岸的废磨坊，没有离开过这里。"}
+      ]
+    },
+    {
+      "id": "q09",
+      "question": "木箱里装的具体是什么？",
+      "answerable": false,
+      "answer": null,
+      "reasonUnknown": "三章中均未开箱，也没有其他可靠来源揭示箱内物；封蜡纹样相近不足以推出内容。",
+      "entityIds": [],
+      "knownBy": [],
+      "unknownBy": ["lin-chuan", "shen-yue"],
+      "firstRevealedAt": null,
+      "evidence": [
+        {"source": "chapters/03.md", "quote": "箱子始终关着，封蜡尚未破开，箱内装着什么仍然未知。"}
+      ]
+    },
+    {
+      "id": "q10",
+      "question": "林川的左臂将在具体哪一天痊愈？",
+      "answerable": false,
+      "answer": null,
+      "reasonUnknown": "只明确当夜仍受伤，需要休养；没有诊断或恢复日期，不可自行补天数。",
+      "entityIds": ["lin-chuan"],
+      "knownBy": [],
+      "unknownBy": ["lin-chuan", "shen-yue"],
+      "firstRevealedAt": null,
+      "evidence": [
+        {"source": "chapters/03.md", "quote": "他的左臂尚未痊愈，仍吊在胸前，搬箱和取物只用右手。"},
+        {"source": "chapters/03.md", "quote": "沈月替他把松开的布结勒稳，没有给出明确的痊愈日期。"}
+      ]
+    },
+    {
+      "id": "q11",
+      "question": "把木箱送到废磨坊的人叫什么名字？",
+      "answerable": false,
+      "answer": null,
+      "reasonUnknown": "只有老船工转述的灰斗篷描述，未问姓名、未见清楚面貌；沈月与送箱人之间也没有身份关联证据。",
+      "entityIds": [],
+      "knownBy": [],
+      "unknownBy": ["lin-chuan", "shen-yue"],
+      "firstRevealedAt": null,
+      "evidence": [
+        {"source": "chapters/01.md", "quote": "他没有问到姓名，也看不清来人的脸。"},
+        {"source": "chapters/02.md", "quote": "送箱人的身份仍无新线索"}
+      ]
+    },
+    {
+      "id": "q12",
+      "question": "故事发生的绝对年月日是什么？",
+      "answerable": false,
+      "answer": null,
+      "reasonUnknown": "可判定三章连续发生在同一个夜晚，不能据此补造年、月、日。",
+      "entityIds": [],
+      "knownBy": [],
+      "unknownBy": ["lin-chuan", "shen-yue"],
+      "firstRevealedAt": null,
+      "evidence": [
+        {"source": "chapters/02.md", "quote": "夜里又没有能核对日期的历书，谁也说不出这一天的绝对年月日。"}
+      ]
+    }
+  ],
+  "contradictions": [
+    {
+      "id": "injury-disappeared",
+      "kind": "Continuity",
+      "category": "Injury",
+      "severity": "Major",
+      "source": "drafts/incorrect.md",
+      "quote": "林川的左臂已经痊愈，伤口和疼痛都消失了，他用左手轻松搬动木箱。",
+      "explanation": "第三章仍是受伤的同一夜，前文左臂尚需吊带和休养，没有恢复依据；候选突然让左臂完全痊愈。",
+      "evidence": [
+        {"source": "chapters/01.md", "quote": "左手一握拳，小臂就疼得发抖。"},
+        {"source": "chapters/02.md", "quote": "仍是受伤的同一个夜晚，林川坐在废磨坊里，左臂用沈月给的布带吊在胸前。"}
+      ]
+    },
+    {
+      "id": "duplicate-seal-ownership",
+      "kind": "Continuity",
+      "category": "Ownership",
+      "severity": "Major",
+      "source": "drafts/incorrect.md",
+      "quote": "沈月从自己的袖袋里取出铜印；林川怀里的那枚也还在，两人持有的是同一枚铜印。",
+      "explanation": "铜印是单一实体且一直由林川持有，候选在未交接、未引入第二枚印的情况下让同一物品同时出现在两处。",
+      "evidence": [
+        {"source": "chapters/01.md", "quote": "附近再没有第二枚铜印，林川把这唯一的一枚收进胸前的内袋。"},
+        {"source": "chapters/02.md", "quote": "比过纹样后，他又把它放回自己的胸前内袋，全程没有交给沈月保管。"}
+      ]
+    },
+    {
+      "id": "seal-secret-leaked",
+      "kind": "KnowledgeLeak",
+      "category": "CharacterKnowledge",
+      "severity": "Major",
+      "source": "drafts/incorrect.md",
+      "quote": "林川未听任何新解释，便说：“这是王都司钥署第七库的验封印，我早已知道。”",
+      "explanation": "铜印真相已向读者揭示且沈月知道，但林川只获知“与王都有关”；候选没有新获取途径便让林川说出机构、库号和用途。",
+      "evidence": [
+        {"source": "chapters/02.md", "quote": "这层来历至此向读者揭示，林川却没有听到她心里的回忆。"},
+        {"source": "chapters/02.md", "quote": "林川此时只从她那里获知“与王都有关”，并不知道铜印真正的所属机构和用途。"},
+        {"source": "chapters/02.md", "quote": "她把旧册留在自己膝上，既没有给林川翻看，也没有再谈铜印的来处。"}
+      ]
+    }
+  ],
+  "draftCases": [
+    {"id": "correct", "source": "drafts/correct.md", "chapterId": "03", "previousChapterIds": ["01", "02"], "expectedContradictionIds": [], "activityGroup": "bridge-3-correct"},
+    {"id": "incorrect", "source": "drafts/incorrect.md", "chapterId": "03", "previousChapterIds": ["01", "02"], "expectedContradictionIds": ["injury-disappeared", "duplicate-seal-ownership", "seal-secret-leaked"], "activityGroup": "bridge-3-incorrect"}
+  ]
+}

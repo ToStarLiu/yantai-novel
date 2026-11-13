@@ -1,0 +1,83 @@
+name: 缺陷报告
+description: 报告可复现的程序错误或不符合预期的行为
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。安全漏洞请先阅读 SECURITY.md，通过私密渠道报告。
+        不要上传 API Key、Token、数据库备份、供应商主密钥或未公开小说原稿。
+  - type: input
+    id: version
+    attributes:
+      label: 应用版本或提交
+      placeholder: 例如 0.4.0，或提交 SHA
+    validations:
+      required: true
+  - type: dropdown
+    id: installation
+    attributes:
+      label: 运行方式
+      options:
+        - Windows 便携桌面包
+        - Windows 源码 / 便携工具链
+        - Docker Compose
+        - 其他源码部署
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: 操作系统与浏览器
+      placeholder: 例如 Windows 11 / Chrome；桌面包可填内置客户端
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 最小复现步骤
+      description: 请使用合成数据，并注明从哪个页面开始。
+      placeholder: |
+        1. 打开……
+        2. 点击……
+        3. 出现……
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期行为与实际行为
+      description: 如果保存、候选采用或数据迁移受到影响，请说明范围，不要附原稿。
+    validations:
+      required: true
+  - type: dropdown
+    id: model
+    attributes:
+      label: 是否涉及 AI 调用
+      options:
+        - 不涉及
+        - 演示 Provider（fake）
+        - Responses 兼容接口
+        - Chat Completions 兼容接口
+        - Ollama
+        - 其他 / 不确定
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: 脱敏错误、日志或截图
+      description: 可附 HTTP 状态码、协议和模型名；请移除地址中的凭据、Cookie、个人信息和正文。日志只截取相关部分。
+  - type: textarea
+    id: tried
+    attributes:
+      label: 已尝试的检查
+      description: 例如复现频率、刷新后是否仍有、是否只影响某个操作；请勿通过删除数据来尝试复现。
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我已搜索已有 Issue，并在上面的材料中移除密钥与私人作品。
+          required: true

@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS wb_copilot_events,wb_copilot_attempts,wb_copilot_turns,wb_copilot_sessions CASCADE;

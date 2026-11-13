@@ -1,0 +1,44 @@
+.env
+.env.*
+!.env.example
+.tools/
+.local/
+logs/
+output/
+tmp/
+evaluation/results/*
+!evaluation/results/README.md
+evaluation/private/
+*.exe
+*.test
+coverage.out
+web/node_modules/
+web/dist/
+web/test-results/
+web/playwright-report/
+test-results/
+desktop/node_modules/
+desktop/dist/
+desktop/resources/
+harness/node_modules/
+harness/dist/
+harness/bundle/
+
+# Private runtime credentials and backup archives
+*.dump
+*.dump.*
+*.backup
+*.key
+*.pem
+*.pfx
+*.p12
+model.env
+login.txt
+# Editor / operating system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+# CI output is generated on runners
+build/
+backend-tests.jsonl

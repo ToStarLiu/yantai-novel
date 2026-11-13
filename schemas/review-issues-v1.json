@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:novel:review-issues:v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["issues"],
+  "properties": {
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "severity", "quote", "explanation", "suggestedAction"],
+        "properties": {
+          "kind": { "type": "string", "enum": ["Continuity", "CharacterKnowledge", "Timeline"] },
+          "severity": { "type": "string", "enum": ["Minor", "Major", "Critical"] },
+          "quote": { "type": "string", "minLength": 1 },
+          "explanation": { "type": "string", "minLength": 1 },
+          "suggestedAction": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

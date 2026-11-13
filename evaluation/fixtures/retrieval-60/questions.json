@@ -1,0 +1,606 @@
+{
+  "schemaVersion": 1,
+  "fixtureVersion": "retrieval-60-v1",
+  "questions": [
+    {
+      "id": "q01",
+      "question": "北岸磨坊到达记录",
+      "tag": "location-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "development"
+    },
+    {
+      "id": "q02",
+      "question": "风铃断线经过",
+      "tag": "event-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "development"
+    },
+    {
+      "id": "q03",
+      "question": "松岭驿站到达记录",
+      "tag": "location-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "development"
+    },
+    {
+      "id": "q04",
+      "question": "驿马脱缰经过",
+      "tag": "event-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "development"
+    },
+    {
+      "id": "q05",
+      "question": "枯井村口到达记录",
+      "tag": "location-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "development"
+    },
+    {
+      "id": "q06",
+      "question": "枯井回声经过",
+      "tag": "event-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "development"
+    },
+    {
+      "id": "q07",
+      "question": "白石渡口到达记录",
+      "tag": "location-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "development"
+    },
+    {
+      "id": "q08",
+      "question": "白帆搁浅经过",
+      "tag": "event-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "development"
+    },
+    {
+      "id": "q09",
+      "question": "青瓦药铺到达记录",
+      "tag": "location-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "development"
+    },
+    {
+      "id": "q10",
+      "question": "药柜暗格经过",
+      "tag": "event-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "development"
+    },
+    {
+      "id": "q11",
+      "question": "柳河码头到达记录",
+      "tag": "location-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "development"
+    },
+    {
+      "id": "q12",
+      "question": "渡船失火经过",
+      "tag": "event-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "development"
+    },
+    {
+      "id": "q13",
+      "question": "石门山道到达记录",
+      "tag": "location-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "development"
+    },
+    {
+      "id": "q14",
+      "question": "山石塌落经过",
+      "tag": "event-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "development"
+    },
+    {
+      "id": "q15",
+      "question": "银杏书院到达记录",
+      "tag": "location-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "development"
+    },
+    {
+      "id": "q16",
+      "question": "册页缺角经过",
+      "tag": "event-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "development"
+    },
+    {
+      "id": "q17",
+      "question": "东城粮仓到达记录",
+      "tag": "location-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "development"
+    },
+    {
+      "id": "q18",
+      "question": "粮袋漏米经过",
+      "tag": "event-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "development"
+    },
+    {
+      "id": "q19",
+      "question": "黄沙关隘到达记录",
+      "tag": "location-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "development"
+    },
+    {
+      "id": "q20",
+      "question": "关印失踪经过",
+      "tag": "event-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "development"
+    },
+    {
+      "id": "q21",
+      "question": "深谷吊桥到达记录",
+      "tag": "location-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "development"
+    },
+    {
+      "id": "q22",
+      "question": "吊桥结冰经过",
+      "tag": "event-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "development"
+    },
+    {
+      "id": "q23",
+      "question": "南城钟楼到达记录",
+      "tag": "location-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "development"
+    },
+    {
+      "id": "q24",
+      "question": "钟槌坠落经过",
+      "tag": "event-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "development"
+    },
+    {
+      "id": "q25",
+      "question": "红枫茶棚到达记录",
+      "tag": "location-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "development"
+    },
+    {
+      "id": "q26",
+      "question": "茶盏裂纹经过",
+      "tag": "event-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "development"
+    },
+    {
+      "id": "q27",
+      "question": "芦苇浅滩到达记录",
+      "tag": "location-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "development"
+    },
+    {
+      "id": "q28",
+      "question": "水鸟惊飞经过",
+      "tag": "event-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "development"
+    },
+    {
+      "id": "q29",
+      "question": "积雪岗亭到达记录",
+      "tag": "location-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "development"
+    },
+    {
+      "id": "q30",
+      "question": "岗哨熄灯经过",
+      "tag": "event-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "development"
+    },
+    {
+      "id": "q31",
+      "question": "最初歇脚的旧作坊在哪里",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "tag": "synonym-paraphrase",
+      "split": "development"
+    },
+    {
+      "id": "q32",
+      "question": "两人抵达的迎客建筑叫什么",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "tag": "synonym-paraphrase",
+      "split": "development"
+    },
+    {
+      "id": "q33",
+      "question": "盛粮建筑遭遇何事",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "tag": "synonym-paraphrase",
+      "split": "development"
+    },
+    {
+      "id": "q34",
+      "question": "寒松",
+      "answerable": true,
+      "purpose": "CharacterKnowledge",
+      "characterId": "shen-yue",
+      "beforeChapterId": "",
+      "tag": "known-secret",
+      "split": "development"
+    },
+    {
+      "id": "q35",
+      "question": "石燕",
+      "answerable": true,
+      "purpose": "CharacterKnowledge",
+      "characterId": "shen-yue",
+      "beforeChapterId": "",
+      "tag": "known-secret",
+      "split": "development"
+    },
+    {
+      "id": "q36",
+      "answerable": false,
+      "characterId": "lin-chuan",
+      "beforeChapterId": "",
+      "question": "银鹿",
+      "purpose": "CharacterKnowledge",
+      "tag": "character-invisible",
+      "split": "development"
+    },
+    {
+      "id": "q37",
+      "answerable": false,
+      "characterId": "lin-chuan",
+      "beforeChapterId": "",
+      "question": "秋灯",
+      "purpose": "CharacterKnowledge",
+      "tag": "character-invisible",
+      "split": "development"
+    },
+    {
+      "id": "q38",
+      "answerable": false,
+      "characterId": "lin-chuan",
+      "beforeChapterId": "",
+      "question": "孤帆",
+      "purpose": "CharacterKnowledge",
+      "tag": "character-invisible",
+      "split": "development"
+    },
+    {
+      "id": "q39",
+      "answerable": false,
+      "characterId": "lin-chuan",
+      "beforeChapterId": "",
+      "question": "赤霞",
+      "purpose": "CharacterKnowledge",
+      "tag": "character-invisible",
+      "split": "development"
+    },
+    {
+      "id": "q40",
+      "answerable": false,
+      "characterId": "",
+      "beforeChapterId": "",
+      "question": "火星基地",
+      "purpose": "AuthorReview",
+      "tag": "no-answer",
+      "split": "development"
+    },
+    {
+      "id": "q41",
+      "question": "竹林寺院到达记录",
+      "tag": "location-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "holdout"
+    },
+    {
+      "id": "q42",
+      "question": "竹笛停声经过",
+      "tag": "event-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "holdout"
+    },
+    {
+      "id": "q43",
+      "question": "西门客栈到达记录",
+      "tag": "location-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "holdout"
+    },
+    {
+      "id": "q44",
+      "question": "客房空锁经过",
+      "tag": "event-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "holdout"
+    },
+    {
+      "id": "q45",
+      "question": "古城水闸到达记录",
+      "tag": "location-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "holdout"
+    },
+    {
+      "id": "q46",
+      "question": "水闸倒流经过",
+      "tag": "event-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "holdout"
+    },
+    {
+      "id": "q47",
+      "question": "青铜地窖到达记录",
+      "tag": "location-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "holdout"
+    },
+    {
+      "id": "q48",
+      "question": "地窖敲击经过",
+      "tag": "event-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "holdout"
+    },
+    {
+      "id": "q49",
+      "question": "王都城门到达记录",
+      "tag": "location-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "holdout"
+    },
+    {
+      "id": "q50",
+      "question": "城门闭锁经过",
+      "tag": "event-keyword",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "split": "holdout"
+    },
+    {
+      "id": "q51",
+      "question": "最后进入的都邑入口",
+      "answerable": true,
+      "purpose": "AuthorReview",
+      "characterId": "",
+      "beforeChapterId": "",
+      "tag": "synonym-paraphrase",
+      "split": "holdout"
+    },
+    {
+      "id": "q52",
+      "question": "春雷",
+      "answerable": true,
+      "purpose": "CharacterKnowledge",
+      "characterId": "shen-yue",
+      "beforeChapterId": "",
+      "tag": "known-secret",
+      "split": "holdout"
+    },
+    {
+      "id": "q53",
+      "question": "晓月",
+      "answerable": true,
+      "purpose": "CharacterKnowledge",
+      "characterId": "shen-yue",
+      "beforeChapterId": "",
+      "tag": "known-secret",
+      "split": "holdout"
+    },
+    {
+      "id": "q54",
+      "question": "远山",
+      "answerable": true,
+      "purpose": "CharacterKnowledge",
+      "characterId": "shen-yue",
+      "beforeChapterId": "",
+      "tag": "known-secret",
+      "split": "holdout"
+    },
+    {
+      "id": "q55",
+      "question": "暮雨",
+      "answerable": true,
+      "purpose": "CharacterKnowledge",
+      "characterId": "shen-yue",
+      "beforeChapterId": "",
+      "tag": "known-secret",
+      "split": "holdout"
+    },
+    {
+      "id": "q56",
+      "answerable": false,
+      "characterId": "",
+      "beforeChapterId": "",
+      "question": "量子电脑",
+      "purpose": "AuthorReview",
+      "tag": "no-answer",
+      "split": "holdout"
+    },
+    {
+      "id": "q57",
+      "answerable": false,
+      "characterId": "",
+      "beforeChapterId": "",
+      "question": "海底潜艇",
+      "purpose": "AuthorReview",
+      "tag": "no-answer",
+      "split": "holdout"
+    },
+    {
+      "id": "q58",
+      "answerable": false,
+      "characterId": "",
+      "beforeChapterId": "",
+      "question": "蛟龙鳞片",
+      "purpose": "AuthorReview",
+      "tag": "no-answer",
+      "split": "holdout"
+    },
+    {
+      "id": "q59",
+      "answerable": false,
+      "characterId": "",
+      "beforeChapterId": "10",
+      "question": "地窖敲击",
+      "purpose": "AuthorReview",
+      "tag": "future-invisible",
+      "split": "holdout"
+    },
+    {
+      "id": "q60",
+      "answerable": false,
+      "characterId": "",
+      "beforeChapterId": "10",
+      "question": "城门闭锁",
+      "purpose": "AuthorReview",
+      "tag": "future-invisible",
+      "split": "holdout"
+    }
+  ]
+}

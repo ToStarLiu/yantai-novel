@@ -1,0 +1,22 @@
+* text=auto
+*.go text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+*.sql text eol=lf
+*.ps1 text eol=lf
+*.sh text eol=lf
+*.png binary
+*.jpg binary
+*.ttf binary
+*.woff2 binary
+
+# Preserve intentional Markdown hard breaks and upstream license text.
+*.md whitespace=-blank-at-eol
+assets/fonts/OFL-NotoSansSC.txt whitespace=-blank-at-eol

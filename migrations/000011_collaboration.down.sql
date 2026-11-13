@@ -1,0 +1,10 @@
+DROP TRIGGER wb_member_changes ON wb_project_members;
+DROP TRIGGER wb_studio_changes ON wb_studio_documents;
+DROP TRIGGER wb_setting_changes ON wb_settings;
+DROP TRIGGER wb_revision_changes ON wb_revisions;
+DROP TRIGGER wb_chapter_changes ON wb_chapters;
+DROP TRIGGER wb_project_changes ON wb_projects;
+DROP FUNCTION wb_record_collab_change();
+DROP TABLE wb_collab_events,wb_presence,wb_invitations,wb_project_members;
+ALTER TABLE wb_sessions DROP COLUMN user_id,DROP COLUMN is_admin,DROP COLUMN username;
+DROP TABLE wb_users;

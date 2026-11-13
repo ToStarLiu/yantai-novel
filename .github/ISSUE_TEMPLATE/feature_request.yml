@@ -1,0 +1,47 @@
+name: 功能建议
+description: 说明作者使用场景和希望改善的体验
+title: "[Feature] "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请先描述要解决的创作或使用问题。可以用合成短例说明，不需要上传整部作品。
+  - type: textarea
+    id: situation
+    attributes:
+      label: 使用场景与当前困难
+      description: 你想完成什么？目前在哪一步受阻或需要反复操作？
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: 希望的行为
+      description: 从作者角度说明输入、操作和希望得到的结果。
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 如何判断改进有效
+      description: 例如减少哪些步骤、保留哪些版本边界或支持哪种导入资料。
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 已尝试的替代方式
+      description: 也可以说明现有页面、Skill 或工具为什么无法满足需求。
+  - type: textarea
+    id: details
+    attributes:
+      label: 补充信息
+      description: 可附脱敏草图、短例或公开资料来源；请注明第三方素材授权。
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我已查看现有功能和 Issue，并确认材料不包含私人作品或凭据。
+          required: true

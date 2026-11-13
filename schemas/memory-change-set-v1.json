@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["changes"],
+  "properties": {
+    "changes": {
+      "type": "array",
+      "maxItems": 200,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "subject", "predicate", "object", "characterId", "truthStatus", "storyTime", "evidence", "decision", "entityName"],
+        "properties": {
+          "id": {"type": "string"},
+          "kind": {"type": "string", "enum": ["Location", "Injury", "Ownership", "Knowledge", "Foreshadow"]},
+          "subject": {"type": "string"},
+          "predicate": {"type": "string"},
+          "object": {"type": "string"},
+          "characterId": {"type": "string"},
+          "truthStatus": {"type": "string", "enum": ["True", "False", "Unknown"]},
+          "storyTime": {"type": ["integer", "null"]},
+          "evidence": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["revisionId", "plainTextHash", "quote", "prefix", "suffix"],
+            "properties": {
+              "revisionId": {"type": "string"},
+              "plainTextHash": {"type": "string"},
+              "quote": {"type": "string"},
+              "prefix": {"type": "string"},
+              "suffix": {"type": "string"}
+            }
+          },
+          "decision": {"type": "string", "enum": ["Pending"]},
+          "entityName": {"type": "string"}
+        }
+      }
+    }
+  }
+}

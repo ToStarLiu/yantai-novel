@@ -1,0 +1,10 @@
+DROP TABLE wb_context_summaries;
+DROP TABLE wb_embeddings;
+DROP TABLE wb_embedding_configs;
+DROP TABLE wb_run_cache;
+DROP TABLE wb_production_steps;
+DROP TABLE wb_productions;
+DROP TABLE wb_workflows;
+DROP TABLE wb_agent_definitions;
+DROP TABLE wb_prompt_templates;
+DROP TABLE wb_provider_configs;
