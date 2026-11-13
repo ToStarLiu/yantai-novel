@@ -57,6 +57,9 @@ func boundedBookBrief(in StoryBrief) (StoryBrief, bool) {
 // The book baseline has no chapter dependency. A project with zero chapters is
 // a first-class planning context, while authoring sessions keep chapter fences.
 func copilotSnapshotCurrent(ctx context.Context, db snapshotDB, t CopilotTurn) (bool, error) {
+	if t.Input.AuthorMemory != nil && t.Input.AuthorMemory.OwnerID != t.Input.Principal.ID {
+		return false, nil
+	}
 	if t.Input.Scope != "book" {
 		return snapshotCurrent(ctx, db, copilotSnapshot(t))
 	}
@@ -67,6 +70,9 @@ func copilotSnapshotCurrent(ctx context.Context, db snapshotDB, t CopilotTurn) (
 	}
 	if epoch != t.Input.Epoch || state != t.Input.StateVersionID || len(t.Input.StudioVersions) != 3 {
 		return false, nil
+	}
+	if valid, err := copilotAuthorMemoryCurrent(ctx, db, t.Input); err != nil || !valid {
+		return valid, err
 	}
 	if valid, err := writingSkillSnapshotCurrent(ctx, db, t.ProjectID, t.Input.WritingSkills); err != nil || !valid {
 		return valid, err
@@ -138,6 +144,9 @@ func (s *Service) bookToolTx(ctx context.Context, t CopilotTurn, minimum string)
 }
 
 func (s *Service) ExecuteBookCopilotTool(ctx context.Context, t CopilotTurn, name, callID string, args json.RawMessage) (CopilotToolResult, error) {
+	if name == "read_author_memory" || name == "propose_author_memory" {
+		return s.executeCopilotAuthorMemoryTool(ctx, t, name, args)
+	}
 	minimum := "viewer"
 	if name == "propose_book_plan" {
 		minimum = "editor"

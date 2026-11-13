@@ -25,6 +25,9 @@ type CopilotToolContext struct {
 	BlueprintVersion       int64                 `json:"blueprintVersion"`
 	StudioVersions         map[string]int64      `json:"studioVersions"`
 	WritingSkills          *WritingSkillSnapshot `json:"writingSkills,omitempty"`
+	AuthorMemory           *AuthorMemorySnapshot `json:"authorMemory,omitempty"`
+	IgnoreMemory           bool                  `json:"ignoreMemory,omitempty"`
+	SuggestMemories        bool                  `json:"suggestMemories"`
 	Selection              string                `json:"selection"`
 	PointOfViewCharacterID string                `json:"pointOfViewCharacterId,omitempty"`
 	Principal              Principal             `json:"principal"`
@@ -48,6 +51,9 @@ type CopilotArtifact struct {
 	Title            string            `json:"title"`
 	RunID            string            `json:"runId,omitempty"`
 	ProposalID       string            `json:"proposalId,omitempty"`
+	MemoryID         string            `json:"memoryId,omitempty"`
+	Scope            string            `json:"scope,omitempty"`
+	Status           string            `json:"status,omitempty"`
 	ExpectedVersion  int64             `json:"expectedVersion"`
 	ChapterID        string            `json:"chapterId"`
 	SourceRevisionID string            `json:"sourceRevisionId"`
@@ -119,6 +125,15 @@ func (s *Service) NewCopilotToolContext(ctx context.Context, turnID, pid, cid, r
 		return CopilotToolContext{}, err
 	}
 	out := CopilotToolContext{ProjectID: pid, ChapterID: cid, RevisionID: revisionID, Epoch: d.Project.Epoch, StateVersionID: d.Project.StateVersionID, BlueprintVersion: c.BlueprintVersion, StudioVersions: studio.Versions, WritingSkills: &skills, Selection: selection, Principal: p, TurnID: turnID}
+	memory, err := s.ResolveAuthorMemories(ctx, pid, "")
+	if err != nil {
+		return out, err
+	}
+	settings, err := s.GetAuthorMemorySettings(ctx)
+	if err != nil {
+		return out, err
+	}
+	out.AuthorMemory, out.SuggestMemories = &memory, settings.SuggestMemories
 	if len(pointOfView) > 0 {
 		out.PointOfViewCharacterID = pointOfView[0]
 	}
@@ -158,7 +173,7 @@ func copilotDecode(raw json.RawMessage, value any) error {
 	return nil
 }
 func (scope CopilotToolContext) runInput(source Revision, chapter Chapter) RunInput {
-	return RunInput{ProjectID: scope.ProjectID, ChapterID: scope.ChapterID, RevisionID: scope.RevisionID, Epoch: scope.Epoch, StateVersionID: scope.StateVersionID, Blueprint: chapter.Blueprint, BlueprintVersion: scope.BlueprintVersion, Source: source.PlainText, SourceHash: source.Hash, StudioVersions: scope.StudioVersions, WritingSkills: writingSkillBaseline(scope.WritingSkills), Selection: scope.Selection, Provider: "copilot", Model: "included-in-copilot-attempt"}
+	return RunInput{ProjectID: scope.ProjectID, ChapterID: scope.ChapterID, RevisionID: scope.RevisionID, Epoch: scope.Epoch, StateVersionID: scope.StateVersionID, Blueprint: chapter.Blueprint, BlueprintVersion: scope.BlueprintVersion, Source: source.PlainText, SourceHash: source.Hash, StudioVersions: scope.StudioVersions, WritingSkills: writingSkillBaseline(scope.WritingSkills), AuthorMemory: authorMemoryBaseline(scope.AuthorMemory, scope.IgnoreMemory), Selection: scope.Selection, Provider: "copilot", Model: "included-in-copilot-attempt"}
 }
 func (s *Service) copilotToolBaseline(ctx context.Context, scope CopilotToolContext, minimum string) (Chapter, Revision, error) {
 	if scope.Principal.ID == "" || scope.ProjectID == "" || scope.ChapterID == "" || scope.RevisionID == "" {
@@ -200,6 +215,13 @@ func boundedCopilotText(text string, max int) (string, bool) {
 }
 
 func (s *Service) ExecuteCopilotTool(ctx context.Context, scope CopilotToolContext, name string, arguments json.RawMessage) (CopilotToolResult, error) {
+	if name == "read_author_memory" || name == "propose_author_memory" {
+		t, err := s.GetCopilotTurn(WithPrincipal(ctx, scope.Principal), scope.TurnID)
+		if err != nil {
+			return CopilotToolResult{}, err
+		}
+		return s.executeCopilotAuthorMemoryTool(WithPrincipal(ctx, scope.Principal), t, name, arguments)
+	}
 	minimum := "viewer"
 	if name == "create_revision_candidate" || name == "propose_blueprint" {
 		minimum = "editor"

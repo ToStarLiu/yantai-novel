@@ -331,6 +331,7 @@ func saveRevisionTx(ctx context.Context, tx pgx.Tx, c Chapter, in SaveInput) (Re
 		var runChapter, runRevision, status, runType, blueprintVersion, runState, actualState string
 		var studioRaw json.RawMessage
 		var writingSkillsRaw json.RawMessage
+		var authorMemoryRaw json.RawMessage
 		var canvasIDsRaw json.RawMessage
 		var canvasVersion int64
 		var runEpoch, actualEpoch int64
@@ -343,6 +344,20 @@ func saveRevisionTx(ctx context.Context, tx pgx.Tx, c Chapter, in SaveInput) (Re
 		}
 		if blueprintVersion != strconv.FormatInt(c.BlueprintVersion, 10) || runState != actualState || runEpoch != actualEpoch {
 			return Revision{}, &Conflict{Message: "章纲、作品或记忆基线已经变化，请重新比较生成结果", CurrentRevisionID: c.CurrentRevisionID}
+		}
+		if err = tx.QueryRow(ctx, "SELECT COALESCE(input->'authorMemory','null'::jsonb) FROM wb_runs WHERE id=$1", in.RunID).Scan(&authorMemoryRaw); err != nil {
+			return Revision{}, err
+		}
+		var privateBaseline *AuthorMemoryBaseline
+		if json.Unmarshal(authorMemoryRaw, &privateBaseline) != nil {
+			return Revision{}, &Conflict{Message: "候选作者记忆来源无效", CurrentRevisionID: c.CurrentRevisionID}
+		}
+		validMemory, memoryErr := authorMemoryBaselineCurrent(ctx, tx, privateBaseline)
+		if memoryErr != nil {
+			return Revision{}, memoryErr
+		}
+		if !validMemory {
+			return Revision{}, &Conflict{Message: "作者偏好记忆已变化，请重新比较生成结果", CurrentRevisionID: c.CurrentRevisionID}
 		}
 		var frozenSkills *WritingSkillSnapshot
 		if json.Unmarshal(writingSkillsRaw, &frozenSkills) != nil {

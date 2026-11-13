@@ -50,10 +50,16 @@ import {
   type ToolData,
 } from "./copilotEvents";
 import type { WritingSkillList } from "./WritingSkills";
+import {
+  AuthorMemoryProposalCard,
+  type AuthorMemoryList,
+} from "./AuthorMemories";
+import { openAuthorMemories } from "./authorMemoryEvents";
 import "./copilot.css";
 
 type Props = {
   composeRequest?: { id: number; text: string };
+  onRefine?: (text: string) => void;
   onBusyChange?: (busy: boolean) => void;
   scope?: "book" | "chapter";
   briefVersion?: number;
@@ -82,6 +88,7 @@ export default function Copilot(props: Props) {
   const [working, setWorking] = useState(false);
   const [showSessions, setShowSessions] = useState(false);
   const [includeSelection, setIncludeSelection] = useState(true);
+  const [ignoreMemory, setIgnoreMemory] = useState(false);
   const [pointOfView, setPointOfView] = useState(
     () => localStorage.getItem(`novel-copilot-pov:${pid}`) || "",
   );
@@ -102,6 +109,13 @@ export default function Copilot(props: Props) {
     queryFn: () =>
       api<CopilotSession[]>(
         `/projects/${pid}/copilot/sessions?scope=${props.scope || "chapter"}`,
+      ),
+  });
+  const authorMemories = useQuery({
+    queryKey: ["author-memories", pid],
+    queryFn: () =>
+      api<AuthorMemoryList>(
+        `/author-memories?projectId=${encodeURIComponent(pid)}`,
       ),
   });
   const writingSkills = useQuery({
@@ -204,6 +218,8 @@ export default function Copilot(props: Props) {
         }));
         setStreamError(false);
         if (["completed", "status"].includes(persisted.kind)) refresh();
+        if (persisted.kind === "tool-result")
+          void qc.invalidateQueries({ queryKey: ["author-memories"] });
       } catch {
         setStreamError(true);
       }
@@ -230,7 +246,7 @@ export default function Copilot(props: Props) {
       end.current?.scrollIntoView({ block: "nearest", behavior: "auto" });
   }, [events, turns, following]);
 
-  const createSession = async () => {
+  const createSession = async (clearDraft = true) => {
     const session = await api<CopilotSession>(
       `/projects/${pid}/copilot/sessions`,
       "POST",
@@ -243,7 +259,7 @@ export default function Copilot(props: Props) {
     setSessionID(session.id);
     await qc.invalidateQueries({ queryKey: ["copilot-sessions", pid] });
     setShowSessions(false);
-    setDraft("");
+    if (clearDraft) setDraft("");
     return session.id;
   };
   const send = async (text = draft, mode = "chat") => {
@@ -251,7 +267,7 @@ export default function Copilot(props: Props) {
     setWorking(true);
     try {
       const revision = await props.flush();
-      const selected = sessionID || (await createSession());
+      const selected = sessionID || (await createSession(false));
       const turn = await api<CopilotTurn>(
         `/copilot/sessions/${selected}/turns`,
         "POST",
@@ -262,6 +278,7 @@ export default function Copilot(props: Props) {
           inputRevisionId: revision,
           selection: includeSelection ? props.selection : "",
           pointOfViewCharacterId: book ? "" : pointOfView,
+          ignoreMemory,
           maxSteps: 8,
           mode,
           scope: props.scope || "chapter",
@@ -269,6 +286,7 @@ export default function Copilot(props: Props) {
       );
       setSessionID(selected);
       setDraft("");
+      setIgnoreMemory(false);
       setFollowing(true);
       qc.setQueryData<CopilotDetail>(["copilot-session", selected], (old) =>
         old ? { ...old, turns: [...old.turns, turn] } : old,
@@ -384,6 +402,33 @@ export default function Copilot(props: Props) {
           </label>
         )}
       </div>
+      <div className="copilot-author-memory" aria-label="本轮作者记忆设置">
+        <button
+          type="button"
+          className="text-button"
+          onClick={() => openAuthorMemories({ projectId: pid })}
+        >
+          <Brain size={12} />
+          <span>
+            {authorMemories.isError
+              ? "记忆读取失败 · 管理"
+              : ignoreMemory
+                ? "本轮不使用作者记忆"
+                : authorMemories.data?.settings.useMemory === false
+                  ? "作者记忆已关闭"
+                  : `作者记忆 · ${authorMemories.data?.items.filter((item) => item.status === "active").length || 0} 条可用`}
+          </span>
+        </button>
+        <label title="不加载作者偏好，也不从这一轮提出新记忆；切换时会重建对话上下文。">
+          <input
+            type="checkbox"
+            checked={ignoreMemory}
+            disabled={working || !!active}
+            onChange={(event) => setIgnoreMemory(event.target.checked)}
+          />
+          本轮不使用记忆
+        </label>
+      </div>
       {!!writingSkills.data?.items.some(
         (skill) =>
           skill.enabled &&
@@ -483,6 +528,12 @@ export default function Copilot(props: Props) {
             turn={turn}
             events={events[turn.id] || []}
             {...props}
+            onRefine={(text) => {
+              setDraft((current) =>
+                current.trim() ? current + "\n\n" + text : text,
+              );
+              input.current?.focus();
+            }}
           />
         ))}
         {working && !active && (
@@ -643,6 +694,61 @@ function Turn({
               </p>
             </details>
           )}
+          {(turn.input.ignoreMemory || turn.input.authorMemory) && (
+            <details className="copilot-turn-memory">
+              <summary>
+                <Brain size={11} />
+                {turn.input.ignoreMemory
+                  ? "本轮未使用作者记忆"
+                  : turn.input.authorMemory?.enabled
+                    ? `本轮已加载 ${turn.input.authorMemory.items.length} 条作者记忆`
+                    : "本轮作者记忆已关闭"}
+              </summary>
+              {!turn.input.ignoreMemory &&
+                turn.input.authorMemory?.enabled &&
+                (turn.input.authorMemory.items.length ? (
+                  <ul>
+                    {turn.input.authorMemory.items.map((memory) => (
+                      <li key={memory.id}>
+                        <strong>{memory.title}</strong>
+                        <span>
+                          {memory.scope === "book" ? "本书" : "作者通用"} · v
+                          {memory.version}
+                        </span>
+                        <p>{memory.content}</p>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>本轮没有匹配的已确认记忆。</p>
+                ))}
+              <small>这里是本轮加载的版本；后续修改从下一轮生效。</small>
+            </details>
+          )}
+          <button
+            className="copilot-remember"
+            type="button"
+            disabled={live}
+            onClick={() =>
+              openAuthorMemories({
+                projectId: props.detail.project.id,
+                initialDraft: {
+                  scope: "author",
+                  kind: "conversation",
+                  title: "对话中的记忆点",
+                  content: Array.from(turn.input.text).slice(0, 1200).join(""),
+                  sourceSessionId: turn.sessionId,
+                  sourceTurnId: turn.id,
+                  sourceQuote: Array.from(turn.input.text)
+                    .slice(0, 2000)
+                    .join(""),
+                },
+              })
+            }
+          >
+            <Brain size={11} />
+            记住这句话
+          </button>
           {turn.input.selection && (
             <details>
               <summary>
@@ -795,6 +901,15 @@ function ToolCard({
 }
 
 function Artifact(props: Props & { artifact: CopilotArtifact }) {
+  if (props.artifact.kind === "author-memory-proposal")
+    return (
+      <AuthorMemoryProposalCard
+        memoryId={props.artifact.memoryId || props.artifact.proposalId || ""}
+        projectId={props.detail.project.id}
+        disabled={!props.artifactReady}
+        onChanged={props.onSaved}
+      />
+    );
   return props.artifact.kind === "book-plan-proposal" ? (
     <BookPlanArtifact {...props} />
   ) : (
@@ -1015,6 +1130,37 @@ function ChapterArtifact({
           查看差异
         </button>
       )}
+      {!isBlueprint &&
+        artifact.kind === "revision-candidate" &&
+        props.onRefine && (
+          <div className="copilot-feedback" aria-label="继续打磨候选">
+            <span>还差一点？</span>
+            {["更含蓄", "少解释", "节奏更紧", "保留原声"].map(
+              (label, index) => (
+                <button
+                  key={label}
+                  type="button"
+                  disabled={!props.artifactReady || !valid}
+                  onClick={() =>
+                    props.onRefine?.(
+                      [
+                        "请继续打磨这份改写候选：用动作和对话表现情绪，减少直接说明心理；保持事实和人物语气。",
+                        "请继续打磨这份改写候选：删去重复解释和段尾总结，让读者自己体会；保持事实。",
+                        "请继续打磨这份改写候选：压紧重复铺陈，让动作推进冲突；保留关键线索和人物意图。",
+                        "请继续打磨这份改写候选：对照原文保留作者措辞、人物口吻和句子节奏，只修改必要部分。",
+                      ][index] +
+                        "\n候选编号：" +
+                        artifact.runId,
+                    )
+                  }
+                >
+                  {label}
+                </button>
+              ),
+            )}
+            <small>先放入输入框，由你补充并发送。</small>
+          </div>
+        )}
       {comparing && (
         <div className="copilot-diff" aria-label="候选差异">
           <div className="row-between">

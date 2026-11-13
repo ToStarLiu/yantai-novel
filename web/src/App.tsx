@@ -46,6 +46,7 @@ import {
   Waypoints,
   NotebookPen,
   GripVertical,
+  Brain,
 } from "lucide-react";
 import {
   api,
@@ -70,7 +71,12 @@ import WorkspaceCommandPalette, {
   type WorkspaceCommand,
 } from "./WorkspaceCommandPalette";
 import type { StudioTab } from "./studioApi";
+import {
+  AUTHOR_MEMORY_OPEN,
+  type OpenAuthorMemoryRequest,
+} from "./authorMemoryEvents";
 import "./workspaceLayout.css";
+const LazyAuthorMemories = lazy(() => import("./AuthorMemories"));
 const LazyWritingSkills = lazy(() => import("./WritingSkills"));
 const LazyEditor = lazy(() => import("./Editor"));
 const LazyAssistant = lazy(() => import("./Assistant"));
@@ -323,6 +329,18 @@ export default function App() {
   );
   const [providerOpen, setProviderOpen] = useState(false);
   const [skillsOpen, setSkillsOpen] = useState(false);
+  const [authorMemoryOpen, setAuthorMemoryOpen] =
+    useState<OpenAuthorMemoryRequest | null>(null);
+  useEffect(() => {
+    const open = (event: Event) => {
+      setAuthorMemoryOpen(
+        (event as CustomEvent<OpenAuthorMemoryRequest>).detail || {},
+      );
+      setCommandsOpen(false);
+    };
+    window.addEventListener(AUTHOR_MEMORY_OPEN, open);
+    return () => window.removeEventListener(AUTHOR_MEMORY_OPEN, open);
+  }, []);
   const [commandsOpen, setCommandsOpen] = useState(false);
   const draftFlush = useRef<(() => Promise<string>) | null>(null);
   const registerFlush = useCallback((flush: (() => Promise<string>) | null) => {
@@ -668,6 +686,13 @@ export default function App() {
       onSelect: () => commandStudio("canvas"),
     },
     {
+      id: "author-memory",
+      label: "管理作者记忆",
+      description: "跨作品的偏好、文风和合作习惯",
+      group: "作者",
+      onSelect: () => setAuthorMemoryOpen({ projectId }),
+    },
+    {
       id: "skills",
       label: "管理写作 Skills",
       description: "调整本书写法与适用任务",
@@ -817,6 +842,19 @@ export default function App() {
               <Leaf size={14} /> 写作 Skills
             </button>
           )}
+          <button
+            className="button author-memory-open"
+            title="作者记忆：偏好、文风与合作习惯"
+            aria-label="作者记忆"
+            onClick={() =>
+              setAuthorMemoryOpen({
+                projectId: surface === "library" ? undefined : projectId,
+              })
+            }
+          >
+            <Brain size={15} />
+            <span>作者记忆</span>
+          </button>
           {session.data.user?.admin && (
             <button
               className="button provider-open"
@@ -901,6 +939,7 @@ export default function App() {
               void act(async () => {
                 await draftFlush.current?.();
                 await api("/session", "DELETE");
+                setAuthorMemoryOpen(null);
                 qc.clear();
                 qc.setQueryData(["session"], {
                   authenticated: false,
@@ -985,6 +1024,14 @@ export default function App() {
               >
                 <Leaf size={19} />
                 <span>Skills</span>
+              </button>
+              <button
+                aria-label="打开作者记忆"
+                title="我的偏好、文风与合作习惯"
+                onClick={() => setAuthorMemoryOpen({ projectId })}
+              >
+                <Brain size={19} />
+                <span>记忆</span>
               </button>
             </div>
             <div className="workspace-rail-bottom">
@@ -1523,6 +1570,22 @@ export default function App() {
             projectId={projectId}
             notify={notify}
             onClose={() => setSkillsOpen(false)}
+          />
+        </Suspense>
+      )}
+      {authorMemoryOpen && (
+        <Suspense
+          fallback={<div className="studio-loading">正在打开作者记忆…</div>}
+        >
+          <LazyAuthorMemories
+            key={
+              (authorMemoryOpen.projectId || "author") +
+              (authorMemoryOpen.initialDraft?.sourceTurnId || "")
+            }
+            projectId={authorMemoryOpen.projectId}
+            initialDraft={authorMemoryOpen.initialDraft}
+            onClose={() => setAuthorMemoryOpen(null)}
+            notify={notify}
           />
         </Suspense>
       )}

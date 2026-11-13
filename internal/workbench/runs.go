@@ -65,6 +65,7 @@ type RunInput struct {
 	StudioContext      json.RawMessage       `json:"studioContext,omitempty"`
 	StudioVersions     map[string]int64      `json:"studioVersions,omitempty"`
 	WritingSkills      *WritingSkillSnapshot `json:"writingSkills,omitempty"`
+	AuthorMemory       *AuthorMemoryBaseline `json:"authorMemory,omitempty"`
 	CandidateRunID     string                `json:"candidateRunId,omitempty"`
 	PromptTemplateID   string                `json:"promptTemplateId,omitempty"`
 	PromptVersion      int                   `json:"promptVersion"`
@@ -134,7 +135,13 @@ func scanRun(row pgx.Row) (Run, error) {
 	return r, err
 }
 func (s *Service) GetRun(ctx context.Context, id string) (Run, error) {
-	return scanRun(s.DB.QueryRow(ctx, "SELECT "+runColumns+" FROM wb_runs WHERE id=$1", id))
+	run, err := scanRun(s.DB.QueryRow(ctx, "SELECT "+runColumns+" FROM wb_runs WHERE id=$1", id))
+	if err != nil {
+		return run, err
+	}
+	runs := []Run{run}
+	err = s.refreshAuthorMemoryRunStaleness(ctx, runs)
+	return runs[0], err
 }
 func (s *Service) ListRuns(ctx context.Context, pid string) ([]Run, error) {
 	rows, err := s.DB.Query(ctx, "SELECT "+runColumns+" FROM wb_runs WHERE project_id=$1 ORDER BY created_at DESC LIMIT 100", pid)
@@ -150,7 +157,12 @@ func (s *Service) ListRuns(ctx context.Context, pid string) ([]Run, error) {
 		}
 		out = append(out, r)
 	}
-	return out, rows.Err()
+	if err = rows.Err(); err != nil {
+		return out, err
+	}
+	// Release the query connection before checking current memory versions.
+	rows.Close()
+	return out, s.refreshAuthorMemoryRunStaleness(ctx, out)
 }
 func (s *Service) Events(ctx context.Context, id string, after int64) ([]RunEvent, error) {
 	rows, err := s.DB.Query(ctx, "SELECT id,kind,data FROM wb_run_events WHERE run_id=$1 AND id>$2 ORDER BY id LIMIT 200", id, after)

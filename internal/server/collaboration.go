@@ -156,7 +156,7 @@ func (s *Server) authorizeRequest(r *http.Request) error {
 	top := parts[1]
 	// Copilot sessions are private to their creator; their own service gate
 	// checks the current project membership on every read, mutation and SSE tick.
-	if top == "copilot" {
+	if top == "copilot" || top == "author-memories" || top == "author-memory-settings" {
 		return nil
 	}
 	if top == "admin" || top == "metrics" || top == "provider-configs" || top == "provider-settings" || top == "embedding-configs" || strings.HasPrefix(top, "mcp") {

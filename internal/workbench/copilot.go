@@ -40,6 +40,7 @@ type CopilotTurnRequest struct {
 	Mode                   string `json:"mode"`
 	PointOfViewCharacterID string `json:"pointOfViewCharacterId,omitempty"`
 	Scope                  string `json:"scope,omitempty"`
+	IgnoreMemory           bool   `json:"ignoreMemory,omitempty"`
 }
 type CopilotInput struct {
 	CopilotTurnRequest
@@ -55,6 +56,8 @@ type CopilotInput struct {
 	ContextKey       string                `json:"contextKey"`
 	BookIndexHash    string                `json:"bookIndexHash,omitempty"`
 	WritingSkills    *WritingSkillSnapshot `json:"writingSkills,omitempty"`
+	AuthorMemory     *AuthorMemorySnapshot `json:"authorMemory,omitempty"`
+	SuggestMemories  bool                  `json:"suggestMemories"`
 }
 type CopilotTurn struct {
 	ID         string          `json:"id"`
@@ -311,13 +314,28 @@ func (s *Service) SubmitCopilotTurn(ctx context.Context, sid string, in CopilotT
 	}
 	input := CopilotInput{CopilotTurnRequest: in, Principal: p, Epoch: detail.Project.Epoch, BlueprintVersion: c.BlueprintVersion, StateVersionID: detail.Project.StateVersionID, StudioVersions: studio.Versions, SessionVersion: session.Version, ProviderID: provider, Policy: policy, MaxOutputTokens: prefs.MaxOutputTokens}
 	input.WritingSkills = &skills
+	memory, e := s.ResolveAuthorMemories(ctx, session.ProjectID, in.Text)
+	if e != nil {
+		return CopilotTurn{}, e
+	}
+	memorySettings, e := s.GetAuthorMemorySettings(ctx)
+	if e != nil {
+		return CopilotTurn{}, e
+	}
+	if in.IgnoreMemory {
+		memory.Enabled = false
+		memory.Items = []AuthorMemory{}
+		memory.Hash = "ignored"
+	}
+	input.AuthorMemory = &memory
+	input.SuggestMemories = memorySettings.SuggestMemories && !in.IgnoreMemory
 	if in.Scope == "book" {
 		input.BookIndexHash, e = bookIndexHash(ctx, s.DB, session.ProjectID)
 		if e != nil {
 			return CopilotTurn{}, e
 		}
 	}
-	contextRaw, _ := json.Marshal(map[string]any{"scope": in.Scope, "chapterId": c.ID, "revisionId": in.InputRevisionID, "epoch": input.Epoch, "state": input.StateVersionID, "blueprint": input.BlueprintVersion, "studio": input.StudioVersions, "owner": p.ID, "pov": in.PointOfViewCharacterID, "bookIndexHash": input.BookIndexHash, "writingSkillsVersion": skills.Version, "writingSkillsHash": skills.Hash})
+	contextRaw, _ := json.Marshal(map[string]any{"scope": in.Scope, "chapterId": c.ID, "revisionId": in.InputRevisionID, "epoch": input.Epoch, "state": input.StateVersionID, "blueprint": input.BlueprintVersion, "studio": input.StudioVersions, "owner": p.ID, "pov": in.PointOfViewCharacterID, "bookIndexHash": input.BookIndexHash, "writingSkillsVersion": skills.Version, "writingSkillsHash": skills.Hash, "authorMemoryVersion": memory.Version, "authorMemoryHash": memory.Hash, "ignoreMemory": in.IgnoreMemory})
 	input.ContextKey = job.Hash(contextRaw)
 	raw, _ := json.Marshal(input)
 	tx, e := s.DB.Begin(ctx)

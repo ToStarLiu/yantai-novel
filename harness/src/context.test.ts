@@ -82,3 +82,34 @@ test('cleared writing-skill pages retain versioned paths and exact read ranges f
   assert.equal(cleared.count,1);for(const value of ['skill-1','"version":4','sha256hash','references/dialogue.md','"offset":1200','"nextOffset":2400'])assert.ok(text.includes(value),value);
   assert.ok(text.includes('应用前须'));assert.equal(text.includes('对白保留潜台词'),false);
 });
+
+
+test('private-memory boundary removes old user preferences as well as summaries, tools and answers without mutating the archive',()=>{
+  const oldPreference='OLD-PRIVATE-PREFERENCE: 我喜欢在每段结尾解释人物情绪。';
+  const history:Message[]=[
+    userMessage(oldPreference),
+    fauxAssistantMessage('OLD-ASSISTANT-PREFERENCE: 以后每段都解释情绪。'),
+    summaryMessage('OLD-SUMMARY-PREFERENCE: 默认解释人物情绪。'),
+    {role:'toolResult',toolCallId:'memory-old',toolName:'read_author_memory',content:[{type:'text',text:'OLD-TOOL-PREFERENCE'}],isError:false,timestamp:1},
+  ];
+  const archive=JSON.stringify(history);
+  for(const current of [true,false]){
+    const replay=rebaseHistory(history,current,false);
+    assert.deepEqual(replay,[]);
+    assert.equal(JSON.stringify(history),archive);
+  }
+  assert.ok(archive.includes(oldPreference));
+  assert.ok(JSON.stringify(rebaseHistory(history,false,true)).includes(oldPreference));
+});
+
+test('cleared author-memory pages retain private provenance and reread instructions without retaining preference prose',()=>{
+  const page:Message={role:'toolResult',toolCallId:'memory-page',toolName:'read_author_memory',content:[{type:'text',text:JSON.stringify({content:{id:'memory-1',scope:'author',kind:'voice',offset:200,nextOffset:600,text:'FORGOTTEN-PROSE'.repeat(100)}})}],isError:false,timestamp:1};
+  const messages:Message[]=[userMessage('旧请求'),page,userMessage('请求1'),userMessage('请求2'),userMessage('请求3')];
+  const cleared=clearOldToolResults(messages,3);
+  const text=textOf(cleared.messages[1]);
+  assert.equal(cleared.count,1);
+  for(const value of ['memory-1','"offset":200','"nextOffset":600','"scope":"author"','"kind":"voice"'])assert.ok(text.includes(value),value);
+  assert.ok(text.includes('不能从旧记录恢复已停用或忘记的偏好'));
+  assert.equal(text.includes('FORGOTTEN-PROSE'),false);
+  assert.ok(textOf(page).includes('FORGOTTEN-PROSE'));
+});
