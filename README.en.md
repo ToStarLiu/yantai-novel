@@ -1,131 +1,147 @@
 # Yantai · 砚台
 
-**A writing workspace for turning an idea into a novel with a voice of its own.**
+**Open a book and know where you left off, what needs attention, and what to do next.**
 
-[简体中文](README.md) · [Quick start](#quick-start) · [Writing Skills](#writing-skills) · [Deployment](deploy/README.md) · [Changelog](CHANGELOG.md)
-
-Yantai is a self-hosted workspace for long-form Chinese fiction. Start with a book plan, develop characters and world rules, then write and revise with an AI partner that can read the book's permitted sources. Generated passages and plans remain candidates until the author chooses to adopt them.
-
-In the current source, each book opens with saved progress, items needing attention, and one action to resume writing. Planning, materials, and AI discussion open when needed; less frequent actions live under **更多** (More). See the [author workflow](docs/development/author-workflow.md) for data sources and limits.
-
-The interface is primarily in Chinese. Version **0.4.0** supports the web, an installable PWA, and a Windows portable desktop build. It uses Go, React/TypeScript, PostgreSQL, and Pi.
-
-![The book library](docs/release/screenshots/release-library.png)
-
-## What it does
-
-| Area | Features |
-| --- | --- |
-| Planning | Book library, new-book wizard, planning before any chapters exist, character/world settings, outlines, scenes, character arcs, story canvas |
-| Manuscripts | Rich-text editing, autosave and recovery buffers, immutable revisions, conflict protection, selection-based rewriting, candidate diffs and explicit adoption |
-| AI partner | Pi tool loop, streaming, persistent conversations, reconnect, cancellation, context compaction, book and chapter scopes |
-| Writing Skills | Preview and import Markdown/ZIP/GitHub/JSON guides, per-book task scopes and priority, versioned edits, complete-package updates, portable exports |
-| Author memory (current source) | Private cross-book preferences, voice, collaboration habits and conversation notes; confirmed suggestions, per-turn disclosure, edit/forget and portable import/export |
-| Story memory | Evidence-backed location, injury, ownership, character knowledge/belief, and foreshadowing; revision impact and filtered retrieval |
-| Advanced tools | Versioned prompts and agents, persistent DAG workflows, review gates, chapter batches, candidate comparison, rule-based sandbox and branches |
-| Collaboration and export | Member roles, invitations, comments, presence, project packages, Markdown/TXT/DOCX/EPUB/PDF/HTML |
-| Integrations | Multiple model providers, optional embeddings/reranking, read-only MCP, source research, and separately configured cover/TTS providers |
-
-Go checks permissions, versions, story evidence, budgets, and adoption. Pi handles the conversation and tool loop. Summaries and suggested plans do not become confirmed story facts automatically.
-
-Literary quality, time saved, and long-term voice consistency require evaluation with actual authors and manuscripts. Passing engineering tests is not a claim about those outcomes.
-
-![The writing partner and tool activity](docs/release/screenshots/copilot-conversation.png)
+[简体中文](README.md) · [Download v0.5.0](https://github.com/ToStarLiu/yantai-novel/releases/tag/v0.5.0) · [Quick start](#quick-start) · [Author workflow](docs/development/author-workflow.md) · [Changelog](CHANGELOG.md)
 
 [![CI](https://github.com/ToStarLiu/yantai-novel/actions/workflows/ci.yml/badge.svg)](https://github.com/ToStarLiu/yantai-novel/actions/workflows/ci.yml)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
-Open author memory from **更多 → 作者记忆** in the top bar. Save a preference directly, remember one of your messages after review, or confirm a pending suggestion. Book and chapter Copilot, single writing tasks, and batch/candidate generation load relevant active notes; factual reviews and extraction remain independent of personal taste. Each task shows its private snapshot and supports opting out. The book’s Voice and Writing page brings together book requirements, personal preferences, original samples and Skills. Explicit candidate references support another revision, selected-passage edits, and comparison with the previous draft before adoption. This is a source-workspace addition, separate from the existing v0.4.0 release downloads. See the [product and privacy contract](docs/development/author-memory.md).
+Yantai is a self-hosted workspace for long-form Chinese fiction. Plan a book, develop characters and world rules, then write and revise with an AI partner that can consult the book's permitted sources. Manuscripts, conversations, and candidate revisions form one workflow. The author chooses what to adopt.
+
+**v0.5.0** introduces a simpler everyday interface, private author memory, unified writing preferences, and iterative candidate revisions. It supports a Windows x64 portable desktop package, the web, and an installable PWA. The interface is primarily in Chinese.
+
+![Manuscript, writing partner, and simplified navigation](docs/release/screenshots/simplified-workspace-desktop.png)
+
+## Four things close to the author
+
+- **Resume the book.** The overview shows actual saved text, final-version status, and review reminders. Each account and book has its own valid resume position in the current browser.
+- **Give your voice concrete references.** Combine book requirements, your own samples, and Writing Skills on one page. Private author memory stores preferences, collaboration habits, and conversation notes across books or within one book.
+- **Keep working on the same candidate.** Refine a draft, change only a selected passage, compare with its parent or the saved manuscript, and adopt the whole candidate or selected changes.
+- **Keep story memory grounded.** Locations, injuries, ownership, character knowledge/belief, and foreshadowing retain manuscript evidence. Earlier revisions prompt review from the affected chapter.
+
+AI suggestions remain candidates. Personal memories can be inspected, corrected, disabled, or forgotten. They provide editable context rather than online model training or a guarantee that prose quality will improve automatically.
 
 ## Quick start
 
-### Windows
+### Windows portable desktop
+
+Download these assets from the [v0.5.0 release](https://github.com/ToStarLiu/yantai-novel/releases/tag/v0.5.0):
+
+| File | Purpose |
+| --- | --- |
+| `Yantai-v0.5.0-windows-x64.zip` | Complete Windows x64 portable directory |
+| `SHA256SUMS.txt` | SHA-256 download checksums |
+| `release.json` | Version and build manifest |
+
+1. Extract the **entire ZIP** into a writable directory, then run `Yantai.exe`. Keep the complete directory when moving or distributing it.
+2. First launch creates a separate data directory and random local account, then signs in automatically. The **砚台** application menu opens the data directory and local login information.
+3. Open **更多 → AI 供应商** (More → AI providers) to configure your endpoint, protocol, model, and key. Until a provider is configured, the explicitly labeled demo model is for exploring the workflow.
+
+The package includes the API, PostgreSQL, web assets, Node/Pi, and Chinese fonts. No separate developer tool installation is required. Real models and optional retrieval, cover, or voice services need their own configuration; see [known limitations](docs/release/known-limitations.md).
+
+**Upgrading:** Locate and back up the author data directory, fully exit the old application, extract the new package into a new program directory, then launch it. Keep the original data and matching `provider-master.key`; do not replace author data with an empty directory or packaged resources. v0.4.0 → v0.5.0 includes database migrations, so reverting requires a pre-upgrade backup. See the [release notes](docs/release/v0.5.0.md#from-an-earlier-version) and [upgrade guide](deploy/upgrade.md).
+
+### Windows web application from source
 
 Requirements: Windows x64, PowerShell 7 (`pwsh`), Git, and network access for the initial tool and dependency downloads.
 
-Clone this repository and run from its root. Keep an existing `.env` rather than overwriting it:
+```sh
+git clone https://github.com/ToStarLiu/yantai-novel.git
+cd yantai-novel
+```
+
+From the repository root, preserve an existing `.env`. On first use, copy the example and set `AUTHOR_PASSWORD` to at least 12 characters:
 
 ```powershell
 if (-not (Test-Path -LiteralPath .env)) { Copy-Item .env.example .env }
 notepad .env
-```
-
-Set `AUTHOR_PASSWORD` to at least 12 characters. The default username is `author`. Model settings may remain blank until you configure a provider in the application.
-
-```powershell
 pwsh -File scripts/setup-dev.ps1
 pwsh -File scripts/start.ps1
 ```
 
-Open [http://127.0.0.1:8088](http://127.0.0.1:8088) and sign in with your configured credentials.
+Open [http://127.0.0.1:8088](http://127.0.0.1:8088) and sign in with your configured credentials. The default username is `author`.
 
-- Setup installs pinned Go, Node.js, sqlc, and PostgreSQL tools into `.tools/`. It does not modify the permanent PATH or install a database service.
-- The start script starts the local database, builds the UI and Pi harness, applies explicit migrations, and runs the application. Use `-SkipBuild` for later starts when the existing builds are current.
-- With `APP_PROVIDER=auto`, an entirely empty environment model connection starts the clearly labeled demo provider. It is for exploring the workflow. Saving and enabling a real default provider in the UI takes effect without restarting.
-- Development PostgreSQL listens on loopback and stores data under `.local/pgdata`. This local development configuration is not intended for public network exposure.
+- Tools install into `.tools/` without changing the permanent PATH or installing a database service.
+- The start script builds the UI and Pi harness, applies explicit migrations, and starts the local service. Use `-SkipBuild` when the existing builds are current.
+- Development PostgreSQL listens on loopback and stores data under `.local/pgdata`. This configuration is not intended for direct public network exposure.
+- To add the original three-chapter example, load the environment in another PowerShell window and run `go run ./cmd/seed`. Seeding does not call a model.
 
-Optionally add the repository's original three-chapter example from a second PowerShell window; this does not call a model:
+See the [toolchain guide](docs/development/toolchain.md) for pinned versions and verification. Docker Compose, HTTPS, reverse proxies, and independent workers are described in [deployment](deploy/README.md); the Compose path still needs independent verification in the target environment.
+
+## Start with one book
+
+1. **Library → plan a book.** Begin with an idea or import an existing manuscript. A book can have an AI planning conversation before any chapters exist.
+2. **Book overview.** See progress, at most three items needing attention, and one next action. Resume this book's chapter or jump to the chapter named by the memory review queue.
+3. **Settings and planning.** Open book direction, characters, world rules, or **文风与写法** (Voice and Writing) as needed. **和 AI 讨论** opens the book-level writing partner.
+4. **Write.** Navigate chapters on the left, edit in the center, and use **对话 / 本章资料 / 记录** (Conversation / Chapter materials / Records) on the right. Tools and **更多** hold less frequent actions.
+5. **Refine and adopt.** Bring a manuscript selection into the conversation, continue a candidate revision, inspect differences, and choose changes to adopt. Preparing a message does not call a model; adoption creates a new manuscript version.
+
+Collapse side panels, enter focus mode, adjust reading preferences, or use quick actions (`Ctrl/Cmd+K`). Switching sections or collapsing a discussion within the same book page preserves its draft. Unsaved forms are checked before leaving or creating a chapter. Resume and reading preferences belong to the current browser and do not automatically synchronize across devices.
+
+<details>
+<summary>Book overview, voice settings, and iterative revision screenshots</summary>
+
+![Book progress and the next action](docs/release/screenshots/simplified-book-desktop.png)
+
+![Book requirements, private samples, and Skills together](docs/release/screenshots/writing-profile-desktop.png)
+
+![Candidate revision and comparison](docs/release/screenshots/candidate-iteration.png)
+
+[Mobile book overview](docs/release/screenshots/simplified-book-mobile.png) · [Mobile manuscript](docs/release/screenshots/simplified-workspace-mobile.png)
+
+</details>
+
+[Author workflow](docs/development/author-workflow.md) · [Iterative revisions and adoption](docs/development/writing-flow.md)
+
+## Writing Skills and author memory
+
+Manage book requirements, private samples, and guides under **设定与规划 → 文风与写法**, or open **更多 → 写作 Skills / 作者记忆** for the dedicated managers.
+
+| Material | Use |
+| --- | --- |
+| Book writing requirements | Voice, pacing, and expressions to avoid; shared with the book's collaborators |
+| Your own samples | A short passage you wrote, with notes on the phrasing, dialogue, or emotional restraint to preserve |
+| Writing Skills | Preview Markdown, ZIP, pinned GitHub sources, or JSON packages; choose book/task scope, priority, versions, and exports |
+| Author memory | Private cross-book or book-specific preferences; confirm suggestions, inspect actual usage, disable, or forget |
+
+Five original Chinese starter templates and six open-source guides with source/license previews are available. Start with one to three complementary guides and your own examples. Imported scripts, CLI commands, and third-party agents are not executed.
+
+The writing partner reads guides and relevant memories in bounded pages as needed. Turns and tasks freeze their selected versions; changes invalidate outdated candidates. Drafting, rewriting, planning, and batch creation can use author preferences, while factual review and extraction exclude personal taste. **记住这句话** lets you review and save one of your messages; a new memory proposed by the assistant needs author confirmation.
+
+[Skill behavior](docs/development/writing-skills.md) · [Open-source guide research](docs/release/writing-skills-research.md) · [Memory and privacy boundaries](docs/development/author-memory.md)
+
+## More tools when needed
+
+| Area | Features |
+| --- | --- |
+| Planning and organization | Book/volume/chapter plans, scenes, character arcs, story canvas, references, story wiki |
+| Memory and retrieval | Manuscript evidence, character knowledge boundaries, revision impact, keyword retrieval, optional embeddings/reranking |
+| Jobs and workflows | Recoverable tasks, versioned prompts/agents, review gates, chapter batches, candidate reviews, rule-based sandbox, branches |
+| Collaboration and publishing | Roles, invitations, comments, presence; project packages and Markdown/TXT/DOCX/EPUB/PDF/HTML exports |
+| Models and integrations | UI provider configuration, Chat Completions/Responses-compatible services, native Ollama, read-only MCP, source research, cover/TTS adapters |
+
+Usage, task state, and estimated costs are visible. Unknown costs stay unknown; estimates are not provider invoices. Check compatibility against your selected services. Literary quality, editing time, and long-term voice effects still require evaluation with actual authors and manuscripts.
+
+## Data, privacy, and backups
+
+Books and execution records live in your PostgreSQL instance. External model calls send the required manuscript, settings, selected memories, and Skills to your configured provider. Optional retrieval and media integrations receive their relevant inputs.
+
+UI provider credentials are encrypted with AES-GCM on the backend and are not returned by read APIs. **Keep the matching provider master key with database backups.** Responses calls set `store:false`; the provider's retention policy remains the provider's responsibility.
+
+Author memory and private inputs are account-scoped and excluded from single-book exports. Generated candidates and adopted manuscripts remain shared according to book permissions. Full-instance backups include private memories, conversations, and frozen task inputs. Forgetting removes a long-term entry and old active context; it does not erase every historical conversation, draft, or backup.
+
+For source-run instances:
 
 ```powershell
-. ./scripts/dev.ps1 -Action env
-go run ./cmd/seed
+pwsh -File scripts/backup.ps1
 ```
 
-Pinned tool versions and download verification are documented in the [toolchain guide](docs/development/toolchain.md).
+A single-book JSON package is for moving a book, not replacing a full-instance backup. Restore writes to a new isolated database and quarantines queues that might otherwise trigger external calls.
 
-### Docker Compose
+[Backup and restore](deploy/backup-restore.md) · [Project package scope](docs/release/project-archive.md) · [Upgrade and rollback](deploy/upgrade.md)
 
-Compose definitions are provided for PostgreSQL, migrations, the API, and a separate worker. **This deployment path has not been executed in the project's local acceptance environment** and needs independent verification.
-
-Copy `.env.example` to `.env` and configure:
-
-- `AUTHOR_PASSWORD`: at least 12 characters.
-- `POSTGRES_PASSWORD`: use a strong URL-safe value, such as at least 32 random hexadecimal characters. The current Compose file inserts it into a database URL.
-- `PUBLIC_ORIGIN=http://127.0.0.1:8088`: use exactly this origin in the browser.
-
-```sh
-docker compose --env-file .env -f deploy/compose.yaml up --build -d
-docker compose --env-file .env -f deploy/compose.yaml ps
-```
-
-Open [http://127.0.0.1:8088](http://127.0.0.1:8088). Portable development PostgreSQL and Compose both default to local port 55432, so use one at a time. See [deployment](deploy/README.md) for HTTPS, reverse proxies, and persistent volumes.
-
-## Configure an AI provider
-
-Open **更多 → AI 供应商** in the top bar. Enter the endpoint, protocol, model, and credentials; discover models and select the default connection. The provider page supports Chat Completions and Responses-compatible services. Advanced configuration also supports native Ollama, task routing, and retrieval services.
-
-Environment configuration is supported as well:
-
-```dotenv
-LLM_BASE_URL=
-LLM_API_KEY=
-LLM_MODEL=
-LLM_WIRE_API=responses
-```
-
-Provide a complete connection matching your service. Keep real keys out of commits, screenshots, and issues. Per-model prices must be configured separately: monetary amounts are estimates, unknown prices stay unknown, and a monetary budget blocks unpriced calls.
-
-Embedding, reranking, search, cover generation, and TTS require their own configured services. Missing integrations are not replaced with pretend successful outputs. See [provider settings](docs/development/provider-settings.md) and [.env.example](.env.example).
-
-## Writing Skills
-
-Open **设定与规划 → 文风与写法** from a book, or choose **更多 → 写作 Skills** in the top bar.
-
-1. Choose a starter template, paste Markdown, upload `SKILL.md`/ZIP/JSON, or provide a GitHub Skill link.
-2. Preview the instructions, reference files, source, license, and compatibility warnings before saving.
-3. Choose task scopes, priority, and enabled state for this book.
-4. Save edits as a new version, update a complete package under the same identity, or export a guide for another book.
-
-Five original Chinese starter templates cover concrete narration, dialogue and subtext, limited viewpoint, scene development, and the author's own voice samples. The catalog also offers six open-source recommendations pinned to specific commits, including Story Deslop, Writing Principles, and Scene Craft. Their licenses and dependencies can be reviewed before import.
-
-Pi reads full instructions and references in bounded pages when needed. Each turn freezes its guide versions; changing the guides prevents outdated candidates from being adopted against the new baseline. Imported scripts, CLI commands, and other agents are not executed. Single-shot tasks load complete main instructions up to a 6,000-character limit; longer guides produce an explicit error with guidance to simplify them or use the conversational workflow.
-
-Start with one to three complementary guides and adjust them using your own writing samples. A longer checklist does not guarantee better prose.
-
-![Writing Skills and source catalog](docs/release/screenshots/release-writing-skills.png)
-
-[Skill behavior and architecture](docs/development/writing-skills.md) · [Open-source guide research](docs/release/writing-skills-research.md)
-
-## Architecture
+## Architecture and development
 
 ```mermaid
 flowchart LR
@@ -137,94 +153,40 @@ flowchart LR
     Pi -->|Authorized tool requests| Go
 ```
 
-Context separates author instructions, current authoritative sources, on-demand tool data, recent conversation, and derived summaries. Outdated source versions leave the active context. Claims about story facts must still resolve to valid source evidence. See [context engineering](docs/development/copilot-context.md).
+Go owns permissions, manuscript/setting versions, story evidence, budgets, execution history, and adoption. Pi handles conversations and the tool loop. Context separates current sources, on-demand material, recent dialogue, and derived summaries; summaries, guides, and preferences do not automatically become story facts or permissions.
 
-```text
-cmd/api/             HTTP, SSE, and web entry
-cmd/worker/          Separate background execution
-internal/workbench/  Books, revisions, memory, retrieval, jobs, and writing tools
-internal/server/     Sessions, CSRF, membership, and API
-harness/             Pi loop, streaming, and context compaction
-migrations/          Explicit PostgreSQL migrations
-web/                 React/TypeScript UI
-desktop/             Windows Electron portable packaging
-```
-
-## Data, privacy, and backups
-
-Books and execution records live in your PostgreSQL instance. External model calls send the required manuscript, settings, permitted memory, and selected guides to the provider you configure. Optional retrieval and media integrations send relevant data to their respective services.
-
-Provider credentials entered in the UI are encrypted with AES-GCM on the backend and are not returned by read APIs. Preserve the independent master key with database backups. Environment credentials remain in your local `.env`. Responses calls set `store:false`; provider retention policies remain the provider's responsibility.
-
-```powershell
-pwsh -File scripts/backup.ps1
-```
-
-Restore uses a new isolated database and quarantines queues that might otherwise trigger external calls. A single-book JSON package preserves manuscripts, settings, current Skills, and story materials; it is not a full database backup and does not contain login credentials or provider secrets.
-
-[Backup and restore](deploy/backup-restore.md) · [Project package coverage](docs/release/project-archive.md) · [Upgrades](deploy/upgrade.md)
-
-## Windows desktop build
-
-Download the Windows x64 package and checksums from [GitHub Releases](https://github.com/ToStarLiu/yantai-novel/releases).
-
-The portable wrapper can include PostgreSQL, the API, web assets, Node/Pi, and Chinese fonts. First launch creates a separate data directory and a random local account, then signs in automatically. Application updates preserve that data. Developer environment files and book databases are excluded from the package.
-
-After Windows tool setup, build from source:
+Dependencies are pinned in `go.mod`/`go.sum` and each directory's `package-lock.json`. After environment setup:
 
 ```powershell
 . ./scripts/dev.ps1 -Action env
-go build -o .tools/api-advanced-next.exe ./cmd/api
-npm --prefix web ci
-npm --prefix web run build
-npm --prefix harness ci
-npm --prefix harness run build
-npm --prefix harness run bundle
-npm --prefix desktop ci
-npm --prefix desktop run package
-```
-
-The executable is `desktop/dist/Yantai-win32-x64/Yantai.exe`; distribute the whole directory. Build outputs are not committed. The browser PWA caches only the static interface: saving and generation still require a connection to the application service.
-
-## Development and verification
-
-Dependency versions are pinned in `go.mod`/`go.sum` and the respective `package-lock.json` files. After preparing the Windows tools and starting PostgreSQL:
-
-```powershell
-. ./scripts/dev.ps1 -Action env
-go test ./... -count=1
+# Create a dedicated test database first; each test uses and removes a random schema.
+$env:TEST_DATABASE_URL = 'postgres://novel@127.0.0.1:55432/novel_test?sslmode=disable'
+go test ./... -count=1 -timeout=420s
 go vet ./...
-npm --prefix web ci
 npm --prefix web run typecheck
 npm --prefix web run test -- --run
 npm --prefix web run build
-npm --prefix harness ci
 npm --prefix harness run build
 npm --prefix harness test
 ```
 
-Database integration tests need `TEST_DATABASE_URL` and use isolated random schemas. Without that variable they explicitly skip; skipped tests do not establish database correctness. Browser tests require a separate demo service and test account. See [Playwright configuration](web/playwright.config.ts) and [frontend verification](docs/release/frontend-verification.md).
+Tests skipped without `TEST_DATABASE_URL` do not establish database correctness. Browser E2E requires a separate demo service rather than an author's everyday instance. See [desktop/README.md](desktop/README.md) for desktop packaging.
 
-Recorded 0.4.0 verification includes 205 backend tests, 19 Pi tests against both source and standalone bundle, five frontend unit tests, and eight affected browser cases for this iteration. Desktop import/tool use/restart and a nonempty database restore were also verified. Details and limitations are in the [acceptance record](docs/release/acceptance.md). Container deployment and literary quality are separate, outstanding evaluations.
+The latest interaction iteration recorded **47 complete Chrome cases**, **16 frontend unit tests**, and a database test for real text-presence summaries. Earlier author-context and revision iterations also have Go/Pi and restore records. The [acceptance log](docs/release/acceptance.md) separates each run's scope and desktop release verification instead of presenting historical results as one new full run.
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) before contributing. Follow [SECURITY.md](SECURITY.md) for vulnerabilities; do not put secrets or private manuscripts in public issues.
+## Documentation and contributing
 
-## Documentation and direction
+Most detailed documentation is in Chinese:
 
-Most detailed documentation is currently in Chinese:
-
+- [Author workflow](docs/development/author-workflow.md), [revisions](docs/development/writing-flow.md), [Skills](docs/development/writing-skills.md), and [author memory](docs/development/author-memory.md).
 - [Deployment](deploy/README.md), [upgrade](deploy/upgrade.md), and [recovery](deploy/recovery-drill.md).
-- [Provider configuration](docs/development/provider-settings.md), [context](docs/development/copilot-context.md), and [Skills](docs/development/writing-skills.md).
-- [Known limitations](docs/release/known-limitations.md) and [reference project comparison](docs/release/reference-advantages.md).
-- [Implementation plan](docs/superpowers/plans/2026-11-12-novel/README.md), [design](docs/superpowers/specs/2026-11-12-novel-workbench-design.md), and [OpenAPI](api/openapi.yaml).
-- [Model baseline](evaluation/baseline-status.md), [retrieval baseline](evaluation/retrieval-baseline.md), and [acceptance](docs/release/acceptance.md).
+- [Providers](docs/development/provider-settings.md), [context](docs/development/copilot-context.md), [CI](docs/development/ci.md), and [OpenAPI](api/openapi.yaml).
+- [Known limitations](docs/release/known-limitations.md), [reference comparison](docs/release/reference-advantages.md), [acceptance](docs/release/acceptance.md), and [retrieval baseline](evaluation/retrieval-baseline.md).
 
-Priorities include author trials, measuring guide and voice-sample effects, longer-book retrieval and timeline regressions, and deployment verification. Collaboration currently uses revision conflicts rather than CRDT/OT merging. The sandbox is a deterministic rules simulation. Model and integration compatibility must be checked against the selected provider.
-
-CI workflow and coverage: [CI guide](docs/development/ci.md).
+Contributions and author feedback are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) first. Follow [SECURITY.md](SECURITY.md) for vulnerabilities; keep keys and private manuscripts out of public issues.
 
 ## License and acknowledgments
 
 Yantai is licensed under **GPL-3.0-only**. See [LICENSE](LICENSE). Dependencies, fonts, Pi components, and imported third-party Skills retain their own licenses and notices; see the [license inventory](docs/licenses.md).
 
-Thanks to Pi, React, Tiptap, React Flow, PostgreSQL, pgx, and the authors who share writing tools and methods. The [reference comparison](docs/release/reference-advantages.md) documents which ideas were adopted and how they were implemented.
+Thanks to Pi, React, Tiptap, React Flow, PostgreSQL, pgx, and the authors who share writing tools and methods. The [reference comparison](docs/release/reference-advantages.md) documents the ideas adopted and their independently implemented scope.

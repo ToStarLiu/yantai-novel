@@ -11,7 +11,7 @@ const command=(exe,args,options={})=>execFileSync(exe,args,{windowsHide:true,std
 async function startBackend(app){
   if(process.env.NOVEL_DESKTOP_URL)return{url:process.env.NOVEL_DESKTOP_URL,stop:async()=>{}};
   const root=app.isPackaged?path.join(process.resourcesPath,'backend'):path.join(__dirname,'resources','backend');
-  if(!fs.existsSync(path.join(root,'api.exe')))return{url:'http://127.0.0.1:8088',stop:async()=>{}};
+  if(!fs.existsSync(path.join(root,'api.exe'))){if(app.isPackaged)throw new Error('桌面包缺少本地服务，请重新下载并完整解压便携包。');return{url:'http://127.0.0.1:8088',stop:async()=>{}};}
   const data=process.env.NOVEL_DESKTOP_DATA||path.join(app.getPath('userData'),'workbench');
   fs.mkdirSync(data,{recursive:true});
   const configPath=path.join(data,'config.json');
@@ -35,7 +35,7 @@ async function startBackend(app){
   const api=path.join(root,'api.exe');
   env.PROVIDER_MASTER_KEY_PATH=path.join(data,'provider-master.key');
   command(api,['migrate','up'],{env,cwd:root});
-  fs.writeFileSync(path.join(data,'login.txt'),`地址：${url}\n用户名：${config.username}\n密码：${config.password}\n\n模型配置：优先在页面顶栏“AI供应商”设置；model.env为兼容入口，修改文件后重启。\n`,{mode:0o600});
+  fs.writeFileSync(path.join(data,'login.txt'),`地址：${url}\n用户名：${config.username}\n密码：${config.password}\n\n模型配置：优先在页面“更多 → AI 供应商”设置；model.env为兼容入口，修改文件后重启。\n`,{mode:0o600});
   if(!fs.existsSync(modelConfig))fs.writeFileSync(modelConfig,'# 配置兼容接口后重启；未配置时明确使用本地演示模型。\nLLM_BASE_URL=\nLLM_MODEL=\nLLM_API_KEY=\nLLM_WIRE_API=responses\nLLM_ACTOR_AUTHORIZATION=\n');
   const output=fs.openSync(path.join(data,'api.log'),'a');
   const child=spawn(api,[],{env,cwd:root,windowsHide:true,stdio:['ignore',output,output]});

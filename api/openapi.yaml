@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "砚台小说创作工作台 API",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "description": "自托管小说创作工作台。同源Cookie会话；除健康/session/邀请接受及独立MCP外所有API需登录，写操作另需Origin与X-CSRF-Token。项目角色owner/editor/reviewer/viewer按请求实时验证；全局Provider/Embedding/MCP/用户配置及metrics限管理员。旧正文/Studio写入返回409，不自动覆盖。模型任务和媒体任务持久运行，断线不取消。"
   },
   "servers": [
