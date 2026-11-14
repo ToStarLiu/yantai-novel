@@ -61,6 +61,7 @@ type Chapter struct {
 	FinalRevisionID   string    `json:"finalRevisionId"`
 	NeedsReview       bool      `json:"needsReview"`
 	Deleted           bool      `json:"deleted"`
+	HasText           *bool     `json:"hasText,omitempty"`
 	Revision          *Revision `json:"revision,omitempty"`
 }
 type Revision struct {

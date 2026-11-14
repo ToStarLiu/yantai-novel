@@ -4,7 +4,9 @@ import {
   ArrowLeft,
   ArrowRight,
   BookOpen,
+  AlertCircle,
   Check,
+  X,
   Feather,
   FilePlus2,
   FolderOpen,
@@ -26,10 +28,18 @@ import {
   type Setting,
 } from "./api";
 import type { StudioTab } from "./studioApi";
+import {
+  bookProgress,
+  chapterHasText,
+  parseRecentWriting,
+} from "./bookProgress";
+import {
+  confirmWorkspaceNavigation,
+  registerNavigationGuard,
+} from "./navigationGuard";
 import "./authorHome.css";
 const WritingProfile = lazy(() => import("./WritingProfile"));
 const Copilot = lazy(() => import("./Copilot"));
-const WritingSkills = lazy(() => import("./WritingSkills"));
 
 export type Brief = {
   plotPlan: string;
@@ -195,7 +205,7 @@ export function LibraryHome({
                     {p.description || "一个正在生长的故事，等你继续。"}
                   </small>
                   <span>
-                    打开作品规划 <ArrowRight size={14} />
+                    查看写作进度 <ArrowRight size={14} />
                   </span>
                 </span>
               </button>
@@ -422,10 +432,16 @@ export function BookHome({
   notify,
   config,
   styleRequest,
+  recentKey,
 }: {
   styleRequest?: number;
+  recentKey?: string;
   detail: Detail;
-  onWrite: (id?: string) => void;
+  onWrite: (
+    id?: string,
+    section?: "memory" | "runs",
+    navigationApproved?: boolean,
+  ) => void;
   onLibrary: () => void;
   onStudio: (tab: StudioTab) => void;
   onRefresh: () => void;
@@ -435,6 +451,23 @@ export function BookHome({
   const qc = useQueryClient(),
     pid = detail.project.id;
   const copilotPane = useRef<HTMLElement>(null);
+  const discussionOpener = useRef<HTMLButtonElement>(null);
+  const [discussionOpen, setDiscussionOpen] = useState(false);
+  const [discussionVisited, setDiscussionVisited] = useState(false);
+  const [discussionRequest, setDiscussionRequest] = useState(0);
+  const [recent] = useState(() => {
+    try {
+      if (!recentKey) return undefined;
+      const scoped = parseRecentWriting(
+        localStorage.getItem(`${recentKey}:${pid}`),
+      );
+      return scoped?.projectId === pid
+        ? scoped
+        : parseRecentWriting(localStorage.getItem(recentKey));
+    } catch {
+      return undefined;
+    }
+  });
   const query = useQuery({
     queryKey: ["book-brief", pid],
     queryFn: () =>
@@ -448,17 +481,12 @@ export function BookHome({
   });
   const [profileVisited, setProfileVisited] = useState(false);
   const [tab, setTab] = useState<
-      | "overview"
-      | "plan"
-      | "characters"
-      | "world"
-      | "chapters"
-      | "skills"
-      | "style"
+      "overview" | "plan" | "characters" | "world" | "chapters" | "style"
     >("overview"),
     [editing, setEditing] = useState(false),
     [edit, setEdit] = useState<Brief>({ ...emptyBrief }),
     [editVersion, setEditVersion] = useState(0),
+    [editBase, setEditBase] = useState<Brief>({ ...emptyBrief }),
     [busy, setBusy] = useState(false),
     [chapterTitle, setChapterTitle] = useState(""),
     [volume, setVolume] = useState("第一卷"),
@@ -469,6 +497,7 @@ export function BookHome({
       content: string;
     }>({ name: "", content: "" }),
     [settingOpen, setSettingOpen] = useState(false),
+    [settingBase, setSettingBase] = useState({ name: "", content: "" }),
     [planError, setPlanError] = useState("");
   useEffect(() => {
     if (styleRequest) setTab("style");
@@ -478,8 +507,172 @@ export function BookHome({
   }, [tab]);
   const brief = query.data?.brief.data || emptyBrief,
     version = query.data?.brief.version || 0,
-    chapters = detail.chapters.filter((c) => !c.deleted),
+    progress = bookProgress(pid, detail.chapters, recent),
+    chapters = progress.chapters,
     canWrite = !!access.data && ["owner", "editor"].includes(access.data.role);
+  const memoryNeedsAttention = ["MemoryPending", "RebuildRequired"].includes(
+    detail.project.health,
+  );
+  const memoryAttention = useQuery({
+    queryKey: [
+      "book-memory-attention",
+      pid,
+      detail.project.health,
+      detail.project.epoch,
+      detail.project.stateVersionId,
+    ],
+    queryFn: async () => {
+      if (detail.project.health === "RebuildRequired")
+        return api<{ projectId: string; epoch: number; chapterIds: string[] }>(
+          `/projects/${pid}/rebuild`,
+        );
+      const state = await api<{
+        projectId: string;
+        epoch: number;
+        pendingChapterIds: string[];
+      }>(`/projects/${pid}/state`);
+      return {
+        projectId: state.projectId,
+        epoch: state.epoch,
+        chapterIds: state.pendingChapterIds,
+      };
+    },
+    enabled: memoryNeedsAttention && tab === "overview",
+  });
+  const memoryTarget =
+    memoryAttention.data?.projectId === pid &&
+    memoryAttention.data.epoch === detail.project.epoch
+      ? memoryAttention.data.chapterIds
+          .map((chapterId) =>
+            chapters.find((chapter) => chapter.id === chapterId),
+          )
+          .find((chapter) => chapter?.finalRevisionId)
+      : undefined;
+  const unsaved = useRef(false);
+  const planDirty =
+    editing && JSON.stringify(edit) !== JSON.stringify(editBase);
+  const settingDirty =
+    settingOpen &&
+    (setting.name !== settingBase.name ||
+      setting.content !== settingBase.content);
+  const chapterDirty = !!chapterTitle.trim();
+  unsaved.current = planDirty || settingDirty || chapterDirty;
+  useEffect(
+    () =>
+      registerNavigationGuard(
+        () =>
+          !unsaved.current ||
+          window.confirm(
+            "这本书还有未保存的设定、规划或章节表单，离开后会放弃这些修改。仍要离开吗？",
+          ),
+      ),
+    [],
+  );
+  useEffect(() => {
+    const leave = (event: BeforeUnloadEvent) => {
+      if (!unsaved.current) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", leave);
+    return () => window.removeEventListener("beforeunload", leave);
+  }, []);
+  const selectTab = (next: typeof tab) => {
+    if (next === tab) return;
+    if (
+      settingDirty &&
+      !window.confirm(
+        "这条设定还有未保存的修改。切换页面会放弃这些修改，仍要切换吗？",
+      )
+    )
+      return;
+    setTab(next);
+    setSettingOpen(false);
+  };
+  const discuss = () => {
+    setDiscussionVisited(true);
+    setDiscussionOpen(true);
+    setDiscussionRequest((value) => value + 1);
+  };
+  useEffect(() => {
+    if (!discussionOpen) return;
+    const focus = () => {
+      const input = copilotPane.current?.querySelector<HTMLTextAreaElement>(
+        'textarea[aria-label="给创作伙伴的消息"]',
+      );
+      if (!input) return false;
+      input.focus({ preventScroll: true });
+      input.scrollIntoView({ block: "nearest", behavior: "auto" });
+      return true;
+    };
+    if (focus()) return;
+    const observer = new MutationObserver(() => {
+      if (focus()) observer.disconnect();
+    });
+    if (copilotPane.current)
+      observer.observe(copilotPane.current, { childList: true, subtree: true });
+    const timeout = window.setTimeout(() => observer.disconnect(), 5000);
+    return () => {
+      observer.disconnect();
+      window.clearTimeout(timeout);
+    };
+  }, [discussionOpen, discussionRequest]);
+  const continueWriting = () =>
+    progress.resume ? onWrite(progress.resume.id) : selectTab("chapters");
+  const attention: {
+    id: string;
+    title: string;
+    description: string;
+    action: () => void;
+    disabled?: boolean;
+  }[] = [
+    ...(memoryNeedsAttention
+      ? [
+          {
+            id: "memory",
+            title:
+              detail.project.health === "RebuildRequired"
+                ? "故事记忆需要复核"
+                : "有已定稿章节的记忆待确认",
+            description: memoryTarget
+              ? `从第 ${memoryTarget.order} 章「${memoryTarget.title}」开始，按章顺序核对记忆。`
+              : memoryAttention.isPending
+                ? "正在定位待处理的定稿章节…"
+                : memoryAttention.isError
+                  ? "暂时无法读取待处理章节，点击重试。"
+                  : "记忆清单已变化，点击刷新后再定位章节。",
+            disabled: memoryAttention.isPending,
+            action: () => {
+              if (memoryTarget) {
+                onWrite(memoryTarget.id, "memory");
+                return;
+              }
+              void memoryAttention.refetch();
+              onRefresh();
+            },
+          },
+        ]
+      : []),
+    ...progress.review.map((chapter) => ({
+      id: chapter.id,
+      title: chapter.title,
+      description: "前文变更后，本章被标记为待复核。",
+      action: () => onWrite(chapter.id),
+    })),
+    ...(!chapters.length &&
+    query.data &&
+    !brief.coreConflict.trim() &&
+    !brief.plotPlan.trim()
+      ? [
+          {
+            id: "plan",
+            title: "故事方向还没有确定",
+            description: "可以先写下主角想要什么，以及挡在面前的冲突。",
+            action: () => selectTab("plan"),
+          },
+        ]
+      : []),
+  ].slice(0, 3);
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: ["book-brief", pid] });
     void qc.invalidateQueries({ queryKey: ["studio", pid] });
@@ -511,18 +704,21 @@ export function BookHome({
     needsReview: false,
     deleted: false,
   };
+  const settingsTab = ["plan", "characters", "world", "style"].includes(tab);
   const sections = [
     { id: "overview", label: "作品概览", Icon: BookOpen },
-    { id: "plan", label: "全书规划", Icon: Waypoints },
-    { id: "characters", label: "人物", Icon: Users },
-    { id: "world", label: "世界与规则", Icon: Layers3 },
+    { id: "plan", label: "设定与规划", Icon: Waypoints },
     { id: "chapters", label: "卷章目录", Icon: FilePlus2 },
-    { id: "style", label: "文风与写法", Icon: Feather },
-    { id: "skills", label: "写作 Skills", Icon: Sparkles },
+  ] as const;
+  const settingSections = [
+    { id: "plan", label: "全书规划" },
+    { id: "characters", label: "人物" },
+    { id: "world", label: "世界与规则" },
+    { id: "style", label: "文风与写法" },
   ] as const;
   const settingKind = tab === "characters" ? "character" : "world";
   return (
-    <main className="book-home">
+    <main className={"book-home" + (discussionOpen ? " discussion-open" : "")}>
       <div className="book-breadcrumb">
         <button className="text-button" onClick={onLibrary}>
           <ArrowLeft size={14} /> 我的书房
@@ -543,46 +739,60 @@ export function BookHome({
         </div>
         <div className="row">
           <button
-            className="button book-discuss"
-            onClick={() => {
-              copilotPane.current?.scrollIntoView({
-                block: "start",
-                behavior: "auto",
-              });
-              copilotPane.current
-                ?.querySelector<HTMLTextAreaElement>("textarea")
-                ?.focus({ preventScroll: true });
-            }}
+            className={
+              "button book-discuss" + (discussionOpen ? " active" : "")
+            }
+            ref={discussionOpener}
+            aria-expanded={discussionOpen}
+            aria-controls="book-discussion"
+            onClick={discuss}
           >
             <Sparkles size={15} /> 和 AI 讨论
           </button>
-          <button className="button" onClick={() => onStudio("canvas")}>
-            <Layers3 size={14} /> 更多创作工具
-          </button>
-          <button
-            className="button primary"
-            onClick={() => (chapters.length ? onWrite() : setTab("chapters"))}
-          >
-            <Feather size={15} /> {chapters.length ? "继续写作" : "准备第一章"}
-          </button>
+          {tab !== "overview" && (
+            <button className="button primary" onClick={continueWriting}>
+              <Feather size={15} />{" "}
+              {chapters.length ? "继续写作" : "准备第一章"}
+            </button>
+          )}
         </div>
       </header>
       <nav className="book-tabs" aria-label="作品导航">
         {sections.map(({ id, label, Icon }) => (
           <button
-            className={tab === id ? "active" : ""}
+            className={
+              (id === "plan" ? settingsTab : tab === id) ? "active" : ""
+            }
+            aria-current={
+              (id === "plan" ? settingsTab : tab === id) ? "page" : undefined
+            }
             key={id}
-            onClick={() => {
-              setTab(id);
-              setSettingOpen(false);
-            }}
+            onClick={() => selectTab(id)}
           >
             <Icon size={15} />
             {label}
           </button>
         ))}
       </nav>
-      <div className="book-home-layout">
+      {settingsTab && (
+        <nav className="book-setting-tabs" aria-label="设定与规划分类">
+          {settingSections.map(({ id, label }) => (
+            <button
+              key={id}
+              aria-current={tab === id ? "page" : undefined}
+              className={tab === id ? "active" : ""}
+              onClick={() => selectTab(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
+      )}
+      <div
+        className={
+          "book-home-layout" + (discussionOpen ? " discussion-open" : "")
+        }
+      >
         <section className="book-main">
           {(tab === "style" || profileVisited) && (
             <div hidden={tab !== "style"}>
@@ -591,95 +801,92 @@ export function BookHome({
               </Suspense>
             </div>
           )}
-          {tab === "skills" && (
-            <Suspense fallback={<p className="muted">正在打开写作指南…</p>}>
-              <WritingSkills projectId={pid} notify={notify} />
-            </Suspense>
-          )}
           {tab === "overview" && (
-            <>
-              <div className="book-next">
-                <span className="step-badge">下一步</span>
-                <h2>
-                  {brief.plotPlan
-                    ? "故事的方向已经有了，接下来让它生长。"
-                    : "先找到这本书最打动人的核心。"}
-                </h2>
+            <div className="book-overview">
+              <section className="book-writing-progress" aria-label="写作进度">
+                <span className="step-badge">写作进度</span>
                 <p>
-                  {brief.plotPlan
-                    ? "完善人物与世界，再把计划拆成可写的章节。随时可以与右侧创作伙伴继续讨论。"
-                    : "和创作伙伴讨论主角、冲突、结局与文风；喜欢的方案可以明确采用到全书规划。"}
+                  <strong>{progress.written.length}</strong> / {chapters.length}{" "}
+                  章已保存正文 <span>·</span>{" "}
+                  <strong>{progress.final.length}</strong> 章当前稿已定稿{" "}
+                  <span>·</span> <strong>{progress.review.length}</strong>{" "}
+                  章待复核
                 </p>
-                <button
-                  className="button primary"
-                  onClick={() => setTab("plan")}
-                >
-                  <Sparkles size={15} />{" "}
-                  {brief.plotPlan ? "查看并完善全书规划" : "开始全书规划"}
+              </section>
+              <section className="book-next" aria-label="下一步写作">
+                <span className="step-badge">
+                  {progress.resumeIsRecent ? "接着上次的思路" : "下一步"}
+                </span>
+                {progress.resume ? (
+                  <>
+                    <h2>{progress.resume.title}</h2>
+                    <p>
+                      {progress.resume.blueprint.trim()
+                        ? progress.resume.blueprint.trim().slice(0, 140) +
+                          (progress.resume.blueprint.trim().length > 140
+                            ? "…"
+                            : "")
+                        : chapterHasText(progress.resume)
+                          ? "正文已经保存在这里。接着写，或选一段和创作伙伴一起推敲。"
+                          : "这一章已经准备好。写下开头，或和创作伙伴一起梳理本章要发生的事。"}
+                    </p>
+                    <small className="book-resume-location">
+                      {progress.resume.volume || "正文"} · 第{" "}
+                      {progress.resume.order} 章
+                      {progress.resume.needsReview ? " · 待复核" : ""}
+                    </small>
+                  </>
+                ) : (
+                  <>
+                    <h2>为故事准备第一章。</h2>
+                    <p>
+                      {brief.coreConflict || brief.plotPlan
+                        ? "故事已经有了方向。给第一章起个名字，就能开始写作，也可以随时回来调整设定。"
+                        : "从一个想写的场景开始。人物、世界和全书方向，都可以在“设定与规划”里慢慢完善。"}
+                    </p>
+                  </>
+                )}
+                <button className="button primary" onClick={continueWriting}>
+                  <Feather size={15} />
+                  {chapters.length ? "继续写作" : "准备第一章"}
+                  <ArrowRight size={15} />
                 </button>
-              </div>
-              <div className="book-stats">
-                <div>
-                  <strong>{chapters.length}</strong>
-                  <span>章节</span>
-                </div>
-                <div>
-                  <strong>
-                    {
-                      detail.settings.filter((s) => s.kind === "character")
-                        .length
-                    }
-                  </strong>
-                  <span>人物</span>
-                </div>
-                <div>
-                  <strong>
-                    {brief.targetWords
-                      ? `${Math.round(brief.targetWords / 10000)}万`
-                      : "未定"}
-                  </strong>
-                  <span>目标字数</span>
-                </div>
-                <div>
-                  <strong>{brief.targetChapters || "未定"}</strong>
-                  <span>计划章节</span>
-                </div>
-              </div>
-              <div className="book-guidance">
-                <h3>从想法到正文</h3>
-                {[
-                  {
-                    label: "确定故事方向",
-                    description: "主角的欲望、核心冲突、结局承诺",
-                    done: !!brief.coreConflict,
-                    click: () => setTab("plan"),
-                  },
-                  {
-                    label: "认识人物与世界",
-                    description: "动机、关系、故事发生的规则",
-                    done: detail.settings.some((s) => s.kind === "character"),
-                    click: () => setTab("characters"),
-                  },
-                  {
-                    label: "安排卷章，开始写作",
-                    description: "让每一章有目标，也有继续读下去的理由",
-                    done: chapters.length > 0,
-                    click: () => setTab("chapters"),
-                  },
-                ].map((item, i) => (
-                  <button key={item.label} onClick={item.click}>
-                    <span className={item.done ? "completed" : ""}>
-                      {item.done ? <Check size={15} /> : i + 1}
-                    </span>
-                    <div>
-                      <strong>{item.label}</strong>
-                      <small>{item.description}</small>
-                    </div>
-                    <ArrowRight size={15} />
+              </section>
+              <section className="book-attention" aria-label="待处理事项">
+                <h3>待处理</h3>
+                {attention.length ? (
+                  <div className="book-attention-list">
+                    {attention.map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={item.action}
+                        disabled={item.disabled}
+                      >
+                        <AlertCircle size={17} />
+                        <span>
+                          <strong>{item.title}</strong>
+                          <small>{item.description}</small>
+                        </span>
+                        <ArrowRight size={15} />
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="book-attention-clear">
+                    <Check size={15} />
+                    目前没有待复核标记。你可以按自己的节奏继续写作。
+                  </p>
+                )}
+                {progress.review.length > 3 && (
+                  <button
+                    className="text-button"
+                    onClick={() => selectTab("chapters")}
+                  >
+                    查看卷章目录中的全部标记 <ArrowRight size={13} />
                   </button>
-                ))}
-              </div>
-            </>
+                )}
+              </section>
+            </div>
           )}
           {tab === "plan" && (
             <>
@@ -692,9 +899,22 @@ export function BookHome({
                   className="button"
                   disabled={!canWrite || busy || !query.data}
                   onClick={() => {
-                    setEdit({ ...emptyBrief, ...brief });
-                    setEditVersion(version);
-                    setEditing(!editing);
+                    if (editing) {
+                      if (
+                        planDirty &&
+                        !window.confirm(
+                          "全书规划还有未保存的修改。收起编辑会放弃这些修改，仍要收起吗？",
+                        )
+                      )
+                        return;
+                      setEditing(false);
+                    } else {
+                      const initial = { ...emptyBrief, ...brief };
+                      setEdit(initial);
+                      setEditBase(initial);
+                      setEditVersion(version);
+                      setEditing(true);
+                    }
                   }}
                 >
                   {editing ? "收起编辑" : "编辑创作方向"}
@@ -844,7 +1064,15 @@ export function BookHome({
                   className="button"
                   disabled={!canWrite}
                   onClick={() => {
+                    if (
+                      settingDirty &&
+                      !window.confirm(
+                        "这条设定还有未保存的修改，仍要重新添加吗？",
+                      )
+                    )
+                      return;
                     setSetting({ name: "", content: "" });
+                    setSettingBase({ name: "", content: "" });
                     setSettingOpen(true);
                   }}
                 >
@@ -902,7 +1130,13 @@ export function BookHome({
                     <button
                       className="text-button"
                       type="button"
-                      onClick={() => setSettingOpen(false)}
+                      onClick={() => {
+                        if (
+                          !settingDirty ||
+                          window.confirm("放弃这条设定尚未保存的修改吗？")
+                        )
+                          setSettingOpen(false);
+                      }}
                     >
                       取消
                     </button>
@@ -924,7 +1158,18 @@ export function BookHome({
                           className="text-button"
                           disabled={!canWrite}
                           onClick={() => {
+                            if (
+                              settingDirty &&
+                              !window.confirm(
+                                "这条设定还有未保存的修改，仍要编辑另一条吗？",
+                              )
+                            )
+                              return;
                             setSetting(s);
+                            setSettingBase({
+                              name: s.name,
+                              content: s.content,
+                            });
                             setSettingOpen(true);
                           }}
                         >
@@ -967,7 +1212,16 @@ export function BookHome({
                       <small>{c.volume || "正文"}</small>
                       <strong>{c.title}</strong>
                     </div>
-                    <small>{c.finalRevisionId ? "已定稿" : "草稿"}</small>
+                    <small>
+                      {c.needsReview
+                        ? "待复核"
+                        : c.currentRevisionId &&
+                            c.finalRevisionId === c.currentRevisionId
+                          ? "已定稿"
+                          : chapterHasText(c)
+                            ? "创作中"
+                            : "待起笔"}
+                    </small>
                     <ArrowRight size={16} />
                   </button>
                 ))}
@@ -977,6 +1231,23 @@ export function BookHome({
                   className="form-stack book-new-chapter"
                   onSubmit={(e) => {
                     e.preventDefault();
+                    if (planDirty) {
+                      setTab("plan");
+                      notify(
+                        "全书规划还有未保存的修改。请先保存或收起编辑，再创建章节；章节标题已保留。",
+                      );
+                      return;
+                    }
+                    const ownUnsaved = unsaved.current;
+                    let navigationApproved = false;
+                    try {
+                      // This form is being submitted; other mounted drafts must be checked before creating a chapter.
+                      unsaved.current = planDirty || settingDirty;
+                      navigationApproved = confirmWorkspaceNavigation();
+                    } finally {
+                      unsaved.current = ownUnsaved;
+                    }
+                    if (!navigationApproved) return;
                     void action(async () => {
                       const c = await api<Chapter>(
                         `/projects/${pid}/chapters`,
@@ -988,7 +1259,9 @@ export function BookHome({
                         queryFn: () => api<Detail>(`/projects/${pid}`),
                         staleTime: 0,
                       });
-                      onWrite(c.id);
+                      setChapterTitle("");
+                      unsaved.current = planDirty || settingDirty;
+                      onWrite(c.id, undefined, true);
                     });
                   }}
                 >
@@ -1020,32 +1293,50 @@ export function BookHome({
           )}
           {planError && <div className="error-box">{planError}</div>}
         </section>
-        <aside className="book-copilot" ref={copilotPane}>
-          <header>
-            <Sparkles size={16} />
-            <div>
-              <strong>全书创作伙伴</strong>
-              <span>先讨论方向，再采用方案</span>
-            </div>
-          </header>
-          <Suspense fallback={<p className="muted">正在打开创作伙伴…</p>}>
-            <Copilot
-              key={pid + ":book"}
-              scope="book"
-              briefVersion={version}
-              chapter={artificialChapter}
-              detail={detail}
-              currentRevisionId=""
-              currentText={brief.plotPlan || ""}
-              selection=""
-              config={config}
-              flush={async () => ""}
-              onApply={async () => {}}
-              onSaved={refresh}
-              notify={notify}
-            />
-          </Suspense>
-        </aside>
+        {(discussionOpen || discussionVisited) && (
+          <aside
+            className="book-copilot"
+            id="book-discussion"
+            aria-label="全书创作伙伴"
+            ref={copilotPane}
+            hidden={!discussionOpen}
+          >
+            <header>
+              <Sparkles size={16} />
+              <div>
+                <strong>全书创作伙伴</strong>
+                <span>先讨论方向，再采用方案</span>
+              </div>
+              <button
+                className="icon-button"
+                aria-label="收起全书创作伙伴"
+                onClick={() => {
+                  setDiscussionOpen(false);
+                  discussionOpener.current?.focus();
+                }}
+              >
+                <X size={16} />
+              </button>
+            </header>
+            <Suspense fallback={<p className="muted">正在打开创作伙伴…</p>}>
+              <Copilot
+                key={pid + ":book"}
+                scope="book"
+                briefVersion={version}
+                chapter={artificialChapter}
+                detail={detail}
+                currentRevisionId=""
+                currentText={brief.plotPlan || ""}
+                selection=""
+                config={config}
+                flush={async () => ""}
+                onApply={async () => {}}
+                onSaved={refresh}
+                notify={notify}
+              />
+            </Suspense>
+          </aside>
+        )}
       </div>
     </main>
   );

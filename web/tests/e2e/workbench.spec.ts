@@ -1,3 +1,4 @@
+import { openChapterMaterial, openWorkspaceAction } from "./navigation";
 import { test, expect } from "@playwright/test";
 test("Chinese writing, revisions, AI candidates, memory, search and export round trip", async ({
   page,
@@ -29,7 +30,7 @@ test("Chinese writing, revisions, AI candidates, memory, search and export round
   await expect(page.getByText("已保存", { exact: true })).toBeVisible();
   await page.reload();
   await expect(editor).toContainText("林川左臂受伤");
-  await page.getByRole("button", { name: "本章章纲", exact: true }).click();
+  await openChapterMaterial(page, "本章章纲");
   await page
     .getByLabel("章纲", { exact: true })
     .fill(
@@ -65,7 +66,7 @@ test("Chinese writing, revisions, AI candidates, memory, search and export round
   await expect(page.getByRole("status")).toContainText("历史正文已恢复");
   await page.getByRole("button", { name: "确认定稿" }).click();
   await expect(page.getByText("正文已定稿", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "故事记忆", exact: true }).click();
+  await openChapterMaterial(page, "故事记忆");
   await page.getByRole("button", { name: "提取本章记忆变更" }).click();
   await expect(
     page.getByRole("button", { name: "保存审核决定" }),
@@ -77,7 +78,7 @@ test("Chinese writing, revisions, AI candidates, memory, search and export round
   await page.getByRole("button", { name: "提交已审核记忆" }).click();
   await expect(page.getByRole("status")).toContainText("记忆变更已提交");
   const downloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: "导出完整作品" }).click();
+  await openWorkspaceAction(page, "导出完整作品");
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/\.json$/);
   await download.saveAs("test-results/browser-project-export.json");

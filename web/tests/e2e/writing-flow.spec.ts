@@ -1,5 +1,6 @@
 import { expect, test, type Page, type Locator } from "@playwright/test";
 import { authenticate } from "./auth";
+import { openBookSection } from "./navigation";
 const origin = process.env.E2E_BASE_URL || "http://127.0.0.1:8089";
 let headers: Record<string, string>;
 let oldMemory: Set<string>;
@@ -80,7 +81,7 @@ test("book voice combines private defaults, book instructions, original samples 
 }) => {
   const f = await fixture(page);
   await page.goto("/#book/" + f.p.id);
-  await page.getByRole("button", { name: "文风与写法", exact: true }).click();
+  await openBookSection(page, "文风与写法");
   const profile = page.getByRole("region", { name: "文风与写法", exact: true });
   await expect(profile).toContainText("本次明确要求 → 本书设定与写法");
   await profile
@@ -113,7 +114,7 @@ test("book voice combines private defaults, book instructions, original samples 
     .click();
   await profile.getByLabel("本书文风方向").fill("未保存的本书文风草稿");
   page.once("dialog", (dialog) => dialog.dismiss());
-  await page.getByRole("button", { name: "书房", exact: true }).click();
+  await page.getByRole("button", { name: "返回我的书房", exact: true }).click();
   await expect(profile.getByLabel("本书文风方向")).toHaveValue(
     "未保存的本书文风草稿",
   );
@@ -165,6 +166,7 @@ test("explicit candidate references produce a revision chain, preserve previous 
   await expect(initial).toBeVisible();
   const original = await page.getByTestId("chapter-editor").textContent();
   const firstRun = await initial.getAttribute("data-artifact-run");
+  await initial.getByText("快捷修改建议", { exact: true }).click();
   await initial.getByRole("button", { name: "少解释", exact: true }).click();
   await expect(page.getByLabel("本轮修改的候选")).toContainText(
     firstRun!.slice(0, 8),

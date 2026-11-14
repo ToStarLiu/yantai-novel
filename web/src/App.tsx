@@ -42,9 +42,7 @@ import {
   PanelLeftOpen,
   Maximize2,
   Minimize2,
-  Users,
   Waypoints,
-  NotebookPen,
   GripVertical,
   Brain,
 } from "lucide-react";
@@ -67,6 +65,7 @@ import {
 import { useDraft } from "./useDraft";
 import { BookHome, LibraryHome, NewBookWizard } from "./AuthorHome";
 import ProviderSettings from "./ProviderSettings";
+import WorkspaceActions, { type WorkspaceAction } from "./WorkspaceActions";
 import WorkspaceCommandPalette, {
   type WorkspaceCommand,
 } from "./WorkspaceCommandPalette";
@@ -237,6 +236,11 @@ export default function App() {
       "",
   );
   const [chapterId, setChapterId] = useState("");
+  const [assistantTabRequest, setAssistantTabRequest] = useState<{
+    id: number;
+    chapterId: string;
+    tab: "memory" | "runs";
+  }>();
   const [modal, setModal] = useState<ModalState>(null);
   const [notice, setNotice] = useState("");
   const [assistantOpen, setAssistantOpen] = useState(
@@ -409,14 +413,17 @@ export default function App() {
       session.data?.user?.id &&
       current?.projectId === projectId
     )
-      localStorage.setItem(
-        recentKey,
-        JSON.stringify({
+      try {
+        const position = JSON.stringify({
           projectId,
           chapterId: current.id,
           chapterTitle: current.title,
-        }),
-      );
+        });
+        localStorage.setItem(recentKey, position);
+        localStorage.setItem(recentKey + ":" + projectId, position);
+      } catch {
+        /* A blocked local preference must not interrupt writing. */
+      }
   }, [surface, projectId, chapter.data, recentKey, session.data?.user?.id]);
   const access = useQuery({
     queryKey: ["studio", projectId, "access"],
@@ -468,11 +475,13 @@ export default function App() {
     next: "library" | "book" | "write",
     pid = projectId,
     cid?: string,
+    navigationApproved = false,
   ) => {
     try {
-      if (!confirmWorkspaceNavigation()) return;
+      if (!navigationApproved && !confirmWorkspaceNavigation()) return false;
       await draftFlush.current?.();
       setStyleRequest(0);
+      setAssistantTabRequest(undefined);
       if (pid !== projectId) setProjectId(pid);
       if (cid) setChapterId(cid);
       setSurface(next);
@@ -485,8 +494,10 @@ export default function App() {
           ? window.location.pathname
           : `#${next}/${pid}${cid ? "/" + cid : ""}`,
       );
+      return true;
     } catch (e) {
       notify(message(e));
+      return false;
     }
   };
   const act = async (fn: () => Promise<unknown>, success?: string) => {
@@ -695,8 +706,7 @@ export default function App() {
       description: "查看本书写法、个人偏好、文字样例与 Skills",
       group: "作者",
       onSelect: async () => {
-        await navigate("book");
-        setStyleRequest(Date.now());
+        if (await navigate("book")) setStyleRequest(Date.now());
       },
     },
     {
@@ -740,6 +750,141 @@ export default function App() {
         await navigate("write", projectId, c.id);
       },
     })),
+  ];
+  const moreActions: WorkspaceAction[] = [
+    ...(surface !== "library"
+      ? ([
+          {
+            id: "book",
+            label: "作品概览",
+            group: "这部作品",
+            Icon: BookMarked,
+            onSelect: () => navigate("book"),
+          },
+          {
+            id: "style",
+            label: "文风与写法",
+            group: "这部作品",
+            Icon: Feather,
+            onSelect: async () => {
+              if (await navigate("book")) setStyleRequest(Date.now());
+            },
+          },
+          {
+            id: "skills",
+            label: "写作 Skills",
+            group: "这部作品",
+            Icon: Leaf,
+            onSelect: () => setSkillsOpen(true),
+          },
+          {
+            id: "studio",
+            label: "创作工作室",
+            group: "这部作品",
+            Icon: Waypoints,
+            disabled: !detail.data,
+            onSelect: () => commandStudio(studioTab),
+          },
+          {
+            id: "publish",
+            label: "出版与导出",
+            group: "这部作品",
+            Icon: Download,
+            disabled: !detail.data,
+            onSelect: () => commandStudio("publishing"),
+          },
+          {
+            id: "settings",
+            label: "作品设置",
+            group: "这部作品",
+            Icon: Settings,
+            disabled: !detail.data,
+            onSelect: () => setModal({ kind: "settings" }),
+          },
+          {
+            id: "export",
+            label: "导出完整作品",
+            group: "这部作品",
+            Icon: Download,
+            disabled: !projectId,
+            onSelect: async () => {
+              await draftFlush.current?.();
+              window.location.href = "/api/projects/" + projectId + "/export";
+            },
+          },
+        ] satisfies WorkspaceAction[])
+      : []),
+    {
+      id: "memory",
+      label: "作者记忆",
+      group: "我的偏好",
+      Icon: Brain,
+      onSelect: () =>
+        setAuthorMemoryOpen({
+          projectId: surface === "library" ? undefined : projectId,
+        }),
+    },
+    ...(session.data.user?.admin
+      ? ([
+          {
+            id: "provider",
+            label: "AI 供应商",
+            group: "我的偏好",
+            Icon: Settings,
+            onSelect: () => setProviderOpen(true),
+          },
+        ] satisfies WorkspaceAction[])
+      : []),
+    ...(surface !== "library"
+      ? ([
+          {
+            id: "library",
+            label: "返回我的书房",
+            group: "书房与账户",
+            Icon: Library,
+            onSelect: () => navigate("library"),
+          },
+        ] satisfies WorkspaceAction[])
+      : []),
+    {
+      id: "import",
+      label: "导入作品",
+      group: "书房与账户",
+      Icon: Upload,
+      onSelect: () => setModal({ kind: "import" }),
+    },
+    ...(installPrompt
+      ? ([
+          {
+            id: "install",
+            label: "安装书房",
+            group: "书房与账户",
+            Icon: Download,
+            onSelect: async () => {
+              await installPrompt.prompt();
+              await installPrompt.userChoice;
+              setInstallPrompt(null);
+            },
+          },
+        ] satisfies WorkspaceAction[])
+      : []),
+    {
+      id: "logout",
+      label: "退出登录",
+      group: "书房与账户",
+      Icon: LogOut,
+      onSelect: async () => {
+        if (!confirmWorkspaceNavigation()) return;
+        await draftFlush.current?.();
+        await api("/session", "DELETE");
+        setAuthorMemoryOpen(null);
+        qc.clear();
+        qc.setQueryData(["session"], { authenticated: false, csrfToken: "" });
+        setProjectId("");
+        setSurface("library");
+        window.history.replaceState(null, "", window.location.pathname);
+      },
+    },
   ];
   return (
     <div
@@ -806,168 +951,36 @@ export default function App() {
         </div>
         <div className="top-actions">
           {surface === "write" && (
-            <button
-              className="button workspace-command-open"
-              aria-label="快捷操作"
-              onClick={() => setCommandsOpen(true)}
-            >
-              <Search size={14} />
-              <span>快速查找</span>
-              <kbd>Ctrl K</kbd>
-            </button>
+            <>
+              <button
+                className="button workspace-command-open"
+                aria-label="快捷操作"
+                onClick={() => setCommandsOpen(true)}
+              >
+                <Search size={14} />
+                <span>快速查找</span>
+                <kbd>Ctrl K</kbd>
+              </button>
+              <button
+                className={
+                  "button workspace-focus-toggle " + (focusMode ? "active" : "")
+                }
+                aria-label={focusMode ? "退出专注模式" : "专注写作"}
+                aria-pressed={focusMode}
+                onClick={() => {
+                  setFocusMode((value) => !value);
+                  setMobileNav(false);
+                }}
+              >
+                {focusMode ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                <span>{focusMode ? "退出专注" : "专注"}</span>
+              </button>
+            </>
           )}
-          {surface === "write" && (
-            <button
-              className={
-                "button workspace-focus-toggle " + (focusMode ? "active" : "")
-              }
-              aria-label={focusMode ? "退出专注模式" : "专注写作"}
-              aria-pressed={focusMode}
-              onClick={() => {
-                setFocusMode((v) => !v);
-                setMobileNav(false);
-              }}
-            >
-              {focusMode ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-              <span>{focusMode ? "退出专注" : "专注"}</span>
-            </button>
-          )}
-          {surface !== "library" && (
-            <button
-              className="button author-home-nav"
-              onClick={() => void navigate("library")}
-            >
-              <Library size={14} /> 书房
-            </button>
-          )}
-          {surface === "write" && (
-            <button
-              className="button author-home-nav"
-              onClick={() => void navigate("book")}
-            >
-              <BookMarked size={14} /> 作品规划
-            </button>
-          )}
-          {surface === "write" && projectId && (
-            <button
-              className="button skills-open"
-              onClick={() => setSkillsOpen(true)}
-            >
-              <Leaf size={14} /> 写作 Skills
-            </button>
-          )}
-          <button
-            className="button author-memory-open"
-            title="作者记忆：偏好、文风与合作习惯"
-            aria-label="作者记忆"
-            onClick={() =>
-              setAuthorMemoryOpen({
-                projectId: surface === "library" ? undefined : projectId,
-              })
-            }
-          >
-            <Brain size={15} />
-            <span>作者记忆</span>
-          </button>
-          {session.data.user?.admin && (
-            <button
-              className="button provider-open"
-              onClick={() => setProviderOpen(true)}
-            >
-              <Settings size={14} /> AI 供应商
-            </button>
-          )}
-          {installPrompt && (
-            <button
-              className="button"
-              onClick={() =>
-                void installPrompt
-                  .prompt()
-                  .then(() => installPrompt.userChoice)
-                  .then(() => setInstallPrompt(null))
-              }
-            >
-              <Download size={14} /> 安装书房
-            </button>
-          )}
-          {surface === "write" && (
-            <button
-              className="button studio-open"
-              disabled={!detail.data}
-              onClick={() =>
-                void act(async () => {
-                  await draftFlush.current?.();
-                  await qc.fetchQuery({
-                    queryKey: ["project", projectId],
-                    queryFn: () => api<Detail>("/projects/" + projectId),
-                    staleTime: 0,
-                  });
-                  setStudioOpen(true);
-                })
-              }
-            >
-              <LayersIcon /> 创作工作室
-            </button>
-          )}
-          {surface !== "library" && (
-            <button
-              className="icon-button"
-              title="作品设置"
-              aria-label="作品设置"
-              disabled={!detail.data}
-              onClick={() => setModal({ kind: "settings" })}
-            >
-              <Settings size={18} />
-            </button>
-          )}
-          <button
-            className="icon-button"
-            title="导入作品"
-            aria-label="导入作品"
-            onClick={() => setModal({ kind: "import" })}
-          >
-            <Upload size={18} />
-          </button>
-          {surface !== "library" && (
-            <button
-              className="icon-button"
-              title="导出完整作品"
-              aria-label="导出完整作品"
-              disabled={!projectId}
-              onClick={() =>
-                void act(async () => {
-                  await draftFlush.current?.();
-                  window.location.href = `/api/projects/${projectId}/export`;
-                })
-              }
-            >
-              <Download size={18} />
-            </button>
-          )}
-          <span className="top-separator" />
-          <button
-            className="author-avatar"
-            title="退出登录"
-            aria-label="退出登录"
-            onClick={() =>
-              void act(async () => {
-                if (!confirmWorkspaceNavigation()) return;
-                await draftFlush.current?.();
-                await api("/session", "DELETE");
-                setAuthorMemoryOpen(null);
-                qc.clear();
-                qc.setQueryData(["session"], {
-                  authenticated: false,
-                  csrfToken: "",
-                });
-                setProjectId("");
-                setSurface("library");
-                window.history.replaceState(null, "", window.location.pathname);
-              })
-            }
-          >
-            {(session.data.username || "作").slice(0, 1)}
-          </button>
+          <WorkspaceActions
+            actions={moreActions}
+            onError={(error) => notify(message(error))}
+          />
         </div>
       </header>
       {surface === "write" && (
@@ -975,20 +988,12 @@ export default function App() {
           <nav className="workspace-rail" aria-label="创作导航">
             <div className="workspace-rail-main">
               <button
-                aria-label="书房"
-                title="返回书房"
-                onClick={() => void navigate("library")}
-              >
-                <Library size={19} />
-                <span>书房</span>
-              </button>
-              <button
-                aria-label="作品规划"
-                title="全书规划"
+                aria-label="作品概览"
+                title="写作进度与待处理事项"
                 onClick={() => void navigate("book")}
               >
                 <BookMarked size={19} />
-                <span>规划</span>
+                <span>概览</span>
               </button>
               <button
                 className="active"
@@ -1003,80 +1008,28 @@ export default function App() {
                 )}
                 <span>正文</span>
               </button>
-              <span className="rail-divider" />
-              <button
-                aria-label="人物与世界"
-                title="人物、世界与规则"
-                disabled={!detail.data}
-                onClick={() => openWorkspaceStudio("characters")}
-              >
-                <Users size={19} />
-                <span>人物</span>
-              </button>
-              <button
-                aria-label="故事画布"
-                title="故事画布"
-                disabled={!detail.data}
-                onClick={() => openWorkspaceStudio("canvas")}
-              >
-                <Waypoints size={19} />
-                <span>画布</span>
-              </button>
-              <button
-                aria-label="作品资料库"
-                title="作品资料与来源 Wiki"
-                disabled={!detail.data}
-                onClick={() => openWorkspaceStudio("wiki")}
-              >
-                <NotebookPen size={19} />
-                <span>资料</span>
-              </button>
-              <button
-                aria-label="写作 Skills"
-                title="本书写作 Skills"
-                disabled={!projectId}
-                onClick={() => setSkillsOpen(true)}
-              >
-                <Leaf size={19} />
-                <span>Skills</span>
-              </button>
               <button
                 aria-label="文风与写法"
-                title="本书写法与作者声音"
+                title="本书写法、文字样例与写作指南"
                 onClick={() =>
-                  void navigate("book").then(() => setStyleRequest(Date.now()))
+                  void navigate("book").then((opened) => {
+                    if (opened) setStyleRequest(Date.now());
+                  })
                 }
               >
                 <Feather size={19} />
-                <span>文风</span>
-              </button>
-              <button
-                aria-label="打开作者记忆"
-                title="我的偏好、文风与合作习惯"
-                onClick={() => setAuthorMemoryOpen({ projectId })}
-              >
-                <Brain size={19} />
-                <span>记忆</span>
+                <span>写法</span>
               </button>
             </div>
             <div className="workspace-rail-bottom">
               <button
-                aria-label="出版与导出"
-                title="出版与导出"
+                aria-label="更多创作工具"
+                title="画布、人物、资料与出版"
                 disabled={!detail.data}
-                onClick={() => openWorkspaceStudio("publishing")}
+                onClick={() => openWorkspaceStudio("canvas")}
               >
-                <Download size={18} />
-                <span>导出</span>
-              </button>
-              <button
-                aria-label="作品设置"
-                title="作品设置"
-                disabled={!detail.data}
-                onClick={() => setModal({ kind: "settings" })}
-              >
-                <Settings size={18} />
-                <span>设置</span>
+                <Waypoints size={19} />
+                <span>工具</span>
               </button>
             </div>
           </nav>
@@ -1278,29 +1231,11 @@ export default function App() {
             </button>
             <div className="directory-mobile-actions">
               <button
-                aria-label="返回作品规划"
+                aria-label="返回作品概览"
                 onClick={() => void navigate("book")}
               >
                 <BookMarked size={14} />
-                作品规划
-              </button>
-              <button
-                aria-label="打开创作工作室"
-                onClick={() => openWorkspaceStudio("canvas")}
-                disabled={!detail.data}
-              >
-                <Waypoints size={14} />
-                创作工具
-              </button>
-              <button
-                aria-label="目录中打开写作 Skills"
-                onClick={() => {
-                  setMobileNav(false);
-                  setSkillsOpen(true);
-                }}
-              >
-                <Leaf size={14} />
-                写作指南
+                作品概览
               </button>
             </div>
             <div className="sidebar-bottom">
@@ -1345,10 +1280,25 @@ export default function App() {
           <BookHome
             key={projectId}
             styleRequest={styleRequest}
+            recentKey={recentKey}
             detail={detail.data}
-            onWrite={(cid) =>
-              void navigate("write", projectId, cid || chapters[0]?.id)
-            }
+            onWrite={(cid, section, navigationApproved) => {
+              void navigate(
+                "write",
+                projectId,
+                cid || chapters[0]?.id,
+                navigationApproved,
+              ).then((opened) => {
+                if (!opened || !section || !cid) return;
+                setFocusMode(false);
+                setAssistantOpen(true);
+                setAssistantTabRequest({
+                  id: Date.now(),
+                  chapterId: cid,
+                  tab: section,
+                });
+              });
+            }}
             onLibrary={() => void navigate("library")}
             onStudio={(tab) => {
               setStudioTab(tab);
@@ -1423,6 +1373,11 @@ export default function App() {
                 }
                 config={config.data}
                 assistantOpen={assistantOpen}
+                assistantTabRequest={
+                  assistantTabRequest?.chapterId === chapterId
+                    ? assistantTabRequest
+                    : undefined
+                }
                 focusMode={focusMode}
                 assistantWidth={assistantWidth}
                 assistantMax={assistantMax}
@@ -1624,10 +1579,6 @@ export default function App() {
     </div>
   );
 }
-function LayersIcon() {
-  return <BookMarked size={15} />;
-}
-
 function Login({ onLogin }: { onLogin: (s: Session) => void }) {
   const [username, setUsername] = useState("author"),
     [password, setPassword] = useState(""),
@@ -1771,6 +1722,7 @@ function ChapterWorkspace({
   detail,
   config,
   assistantOpen,
+  assistantTabRequest,
   focusMode,
   assistantWidth,
   assistantMax,
@@ -1790,6 +1742,7 @@ function ChapterWorkspace({
   detail: Detail;
   config?: { model: string; externalModel: boolean };
   assistantOpen: boolean;
+  assistantTabRequest?: { id: number; tab: "memory" | "runs" };
   focusMode: boolean;
   assistantWidth: number;
   assistantMax: number;
@@ -2097,6 +2050,7 @@ function ChapterWorkspace({
         <Assistant
           hidden={!assistantOpen}
           composeRequest={assistantRequest}
+          initialTabRequest={assistantTabRequest}
           onClose={onToggleAssistant}
           chapter={chapter}
           detail={detail}

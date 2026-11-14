@@ -1,6 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { authenticate } from "./auth";
+import {
+  openBookSkills,
+  openBookSection,
+  openWorkspaceAction,
+} from "./navigation";
 const origin = process.env.E2E_BASE_URL || "http://127.0.0.1:8089";
 const guide = `---\nname: concrete-writing-guide\ndescription: 用具体动作和不说破的对白保留人物差异\nlicense: MIT\n---\n\n# 我的写作方向\n每段至少保留一个人物可观察的具体细节。\n只生成候选，不改变人物已知信息。\n`;
 async function setup(page: Page) {
@@ -17,7 +22,7 @@ async function setup(page: Page) {
   expect(response.ok(), await response.text()).toBeTruthy();
   const project = await response.json();
   await page.goto(`/#book/${project.id}`);
-  await page.getByRole("button", { name: "写作 Skills", exact: true }).click();
+  await openBookSkills(page);
   return { project, headers };
 }
 async function openMarkdown(page: Page, content: string) {
@@ -94,7 +99,8 @@ test("writing Skills preview, versioned author control, export, scoped context a
     fullPage: true,
   });
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.getByRole("button", { name: "全书规划", exact: true }).click();
+  await openBookSection(page, "全书规划");
+  await page.getByRole("button", { name: "和 AI 讨论", exact: true }).click();
   await page
     .getByLabel("给创作伙伴的消息")
     .fill("结合本书启用的写作指南，提出可采用的主线规划。");
@@ -128,7 +134,7 @@ test("writing Skills preview, versioned author control, export, scoped context a
   expect(conversation.turns[0].input.writingSkills.items[0].content).toContain(
     "机械点题",
   );
-  await page.getByRole("button", { name: "写作 Skills", exact: true }).click();
+  await openBookSkills(page);
   await card
     .getByRole("checkbox", { name: "启用 concrete-writing-guide", exact: true })
     .uncheck();
@@ -192,7 +198,7 @@ test("writing Skills preview, versioned author control, export, scoped context a
     .click();
   await expect(page.getByTestId("chapter-editor")).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole("button", { name: "写作 Skills", exact: true }).click();
+  await openWorkspaceAction(page, "写作 Skills");
   const dialog = page.getByRole("dialog", { name: "写作 Skills 管理" });
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText("concrete-writing-guide");
@@ -374,7 +380,7 @@ test("read-only collaborators can inspect Skills but cannot enable, edit or impo
     expect(login.ok(), await login.text()).toBeTruthy();
     const session = await login.json();
     await p.goto(`${origin}/#book/${project.id}`);
-    await p.getByRole("button", { name: "写作 Skills", exact: true }).click();
+    await openBookSkills(p);
     const card = p
       .locator(".skill-card")
       .filter({ hasText: "concrete-writing-guide" });

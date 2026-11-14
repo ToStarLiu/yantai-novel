@@ -221,3 +221,19 @@ Windows便携包0.4.0/schema21实际启动，UI导入原创指南，经包内Pi�
 主库迁移前保留schema22完整备份。升级后真实Chrome登录、唯一示例作品、作者记忆与文风页、无修改编辑/取消通过，无pageerror；真实模型配置gpt-6.1-sol保留，本轮没有新增收费模型调用。原有1部作品、3章、8个正文版本、5个事实及正文哈希摘要与升级前完全匹配；主库未写入测试偏好或任务。8088服务正在运行，测试8089已停止。GitHub既有v0.4.0发行包未改动。
 
 截图：[文风页](screenshots/writing-profile-desktop.png)、[手机文风](screenshots/writing-profile-mobile.png)、[连续改稿](screenshots/candidate-iteration.png)、[任务记忆手机](screenshots/task-memory-mobile.png)、[制作/多候选记忆](screenshots/task-memory-production.png)。使用流程见[持续写作](../development/writing-flow.md)。私人输入隔离不保证模型绝不复述；生成产物仍按作品权限共享。文学质量仍需作者用自己的章节评估。
+
+
+## 作者工作流收敛 — 2026-11-14（当前源码）
+
+作品首页收敛为概览、设定与规划、卷章目录；按账号与作品恢复有效最近章节，无最近位置时回到最后有正文的章。概览显示真实正文、当前稿定稿与待复核状态，并依据后台 pendingChapterIds / rebuild.chapterIds 定位待处理记忆。新建空章已有初始版本，因此后端新增只读 hasText 汇总：在现有章节查询中判断当前文本是否含非空白内容，不返回正文、不逐章查询、不新增迁移。
+
+写作页收拢低频操作到更多；助手只常驻对话、本章资料、记录，资料内部包含章纲、设定、故事记忆和检索。全书讨论默认收起，首次打开后切页/收起保留草稿。创建章节前统一检查已挂载的未保存表单，取消不写入新章节，成功后不再重复确认。详细行为与本地偏好边界见[作者工作流](../development/author-workflow.md)。
+
+最终验证：
+
+- **47/47 Chrome 用例一次完整通过（3.8分钟）**，包括此前40项与新增7项；回执 .local/author-workflow-e2e.json。新增覆盖按书恢复、正确正文/定稿计数、可选全书讨论及手机聚焦、3类助手入口及草稿保留、菜单键盘与移动层级、多章待确认/重建队列定位、未保存规划/文风在创建前取消。早期轮次发现并修复手机菜单被助手遮挡，以及空白初始版本误计正文；测试辅助的异步加载等待也已修正，不以早期失败轮作为通过证据。
+- **16项前端单测**、TypeScript与生产构建通过；新增7项纯逻辑测试覆盖有效最近位置、跨书/删除后备、当前版本定稿、空白初始版本及旧响应真实文本回退。
+- 新增 Go 数据库专项 TestProjectChapterTextPresenceTracksCurrentRevisionWithoutReturningManuscript 通过；验证新空章→真实正文→Unicode空白、正文不进入作品汇总、排序和定稿版本保持正确。go vet ./...、API构建通过。本轮未重跑历史251项Go全套和Pi测试。
+- 主实例8088实际Chrome只读冒烟通过：概览3入口、全书讨论默认收起、写作导航4入口、助手3入口，无页面异常。原有1部作品、3章、8个正文版本及版本内容摘要与更新前一致；测试仍使用独立数据库与演示模型，没有新增付费模型请求。
+
+截图来自隔离测试库的实际浏览器：[作品概览](screenshots/simplified-book-desktop.png)、[手机概览](screenshots/simplified-book-mobile.png)、[简化工作台](screenshots/simplified-workspace-desktop.png)、[手机正文](screenshots/simplified-workspace-mobile.png)。GitHub既有v0.4.0下载包未重新发布。

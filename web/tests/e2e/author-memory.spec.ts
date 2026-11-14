@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { authenticate } from "./auth";
+import { openWorkspaceAction } from "./navigation";
 const origin = process.env.E2E_BASE_URL || "http://127.0.0.1:8089";
 let headers: Record<string, string>;
 let previousIds: Set<string>;
@@ -103,7 +104,7 @@ async function send(page: Page, text: string, count: number) {
   return last;
 }
 async function openMemory(page: Page) {
-  await page.getByRole("button", { name: "作者记忆", exact: true }).click();
+  await openWorkspaceAction(page, "作者记忆");
   return page.getByRole("dialog", { name: "作者记忆", exact: true });
 }
 test("author memory supports manual voice, editing, export/import, settings and mobile", async ({
@@ -276,6 +277,7 @@ test("manual conversation bookmark preserves exact evidence and forgetting inval
     })
     .first();
   await expect(candidate).toBeVisible();
+  await candidate.getByText("快捷修改建议", { exact: true }).click();
   await candidate.getByRole("button", { name: "少解释", exact: true }).click();
   await expect(page.getByLabel("给创作伙伴的消息")).toHaveValue(/删去重复解释/);
   await expect(page.getByTestId("copilot-turn")).toHaveCount(2);

@@ -6,6 +6,8 @@
 
 Yantai is a self-hosted workspace for long-form Chinese fiction. Start with a book plan, develop characters and world rules, then write and revise with an AI partner that can read the book's permitted sources. Generated passages and plans remain candidates until the author chooses to adopt them.
 
+In the current source, each book opens with saved progress, items needing attention, and one action to resume writing. Planning, materials, and AI discussion open when needed; less frequent actions live under **更多** (More). See the [author workflow](docs/development/author-workflow.md) for data sources and limits.
+
 The interface is primarily in Chinese. Version **0.4.0** supports the web, an installable PWA, and a Windows portable desktop build. It uses Go, React/TypeScript, PostgreSQL, and Pi.
 
 ![The book library](docs/release/screenshots/release-library.png)
@@ -32,7 +34,7 @@ Literary quality, time saved, and long-term voice consistency require evaluation
 
 [![CI](https://github.com/ToStarLiu/yantai-novel/actions/workflows/ci.yml/badge.svg)](https://github.com/ToStarLiu/yantai-novel/actions/workflows/ci.yml)
 
-Author memory is available from the top bar and writing workspace. Save a preference directly, remember one of your messages after review, or confirm a pending suggestion. Book and chapter Copilot, single writing tasks, and batch/candidate generation load relevant active notes; factual reviews and extraction remain independent of personal taste. Each task shows its private snapshot and supports opting out. The book’s Voice and Writing page brings together book requirements, personal preferences, original samples and Skills. Explicit candidate references support another revision, selected-passage edits, and comparison with the previous draft before adoption. This is a source-workspace addition, separate from the existing v0.4.0 release downloads. See the [product and privacy contract](docs/development/author-memory.md).
+Open author memory from **更多 → 作者记忆** in the top bar. Save a preference directly, remember one of your messages after review, or confirm a pending suggestion. Book and chapter Copilot, single writing tasks, and batch/candidate generation load relevant active notes; factual reviews and extraction remain independent of personal taste. Each task shows its private snapshot and supports opting out. The book’s Voice and Writing page brings together book requirements, personal preferences, original samples and Skills. Explicit candidate references support another revision, selected-passage edits, and comparison with the previous draft before adoption. This is a source-workspace addition, separate from the existing v0.4.0 release downloads. See the [product and privacy contract](docs/development/author-memory.md).
 
 ## Quick start
 
@@ -89,7 +91,7 @@ Open [http://127.0.0.1:8088](http://127.0.0.1:8088). Portable development Postgr
 
 ## Configure an AI provider
 
-Open **AI 供应商** in the library toolbar. Enter the endpoint, protocol, model, and credentials; discover models and select the default connection. The provider page supports Chat Completions and Responses-compatible services. Advanced configuration also supports native Ollama, task routing, and retrieval services.
+Open **更多 → AI 供应商** in the top bar. Enter the endpoint, protocol, model, and credentials; discover models and select the default connection. The provider page supports Chat Completions and Responses-compatible services. Advanced configuration also supports native Ollama, task routing, and retrieval services.
 
 Environment configuration is supported as well:
 
@@ -106,7 +108,7 @@ Embedding, reranking, search, cover generation, and TTS require their own config
 
 ## Writing Skills
 
-Open **书籍概览 → 写作 Skills**, or use the chapter workspace entry.
+Open **设定与规划 → 文风与写法** from a book, or choose **更多 → 写作 Skills** in the top bar.
 
 1. Choose a starter template, paste Markdown, upload `SKILL.md`/ZIP/JSON, or provide a GitHub Skill link.
 2. Preview the instructions, reference files, source, license, and compatibility warnings before saving.

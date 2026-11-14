@@ -16,6 +16,9 @@ const projectColumns = "id,title,description,genre,epoch,health,state_version_id
 const chapterColumns = "id,project_id,volume,title,sort_order,blueprint,blueprint_version,current_revision_id,final_revision_id,needs_review,deleted"
 const revisionColumns = "id,chapter_id,parent_id,document,plain_text,hash,source,run_id,created_at"
 
+// This matches the Unicode whitespace recognized by strings.TrimSpace.
+const chapterTextWhitespace = "\t\n\v\f\r \u0085\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000"
+
 func noRows(err error) error {
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrNotFound
@@ -30,6 +33,13 @@ func scanProject(row pgx.Row) (Project, error) {
 func scanChapter(row pgx.Row) (Chapter, error) {
 	var c Chapter
 	err := row.Scan(&c.ID, &c.ProjectID, &c.Volume, &c.Title, &c.Order, &c.Blueprint, &c.BlueprintVersion, &c.CurrentRevisionID, &c.FinalRevisionID, &c.NeedsReview, &c.Deleted)
+	return c, noRows(err)
+}
+func scanChapterSummary(row pgx.Row) (Chapter, error) {
+	var c Chapter
+	var hasText bool
+	err := row.Scan(&c.ID, &c.ProjectID, &c.Volume, &c.Title, &c.Order, &c.Blueprint, &c.BlueprintVersion, &c.CurrentRevisionID, &c.FinalRevisionID, &c.NeedsReview, &c.Deleted, &hasText)
+	c.HasText = &hasText
 	return c, noRows(err)
 }
 func scanRevision(row pgx.Row) (Revision, error) {
@@ -99,12 +109,12 @@ func (s *Service) GetProject(ctx context.Context, id string) (ProjectDetail, err
 	if err != nil {
 		return out, err
 	}
-	rows, err := s.DB.Query(ctx, "SELECT "+chapterColumns+" FROM wb_chapters WHERE project_id=$1 AND NOT deleted ORDER BY sort_order,id", id)
+	rows, err := s.DB.Query(ctx, "SELECT "+chapterColumns+", EXISTS(SELECT 1 FROM wb_revisions current_revision WHERE current_revision.id=wb_chapters.current_revision_id AND current_revision.chapter_id=wb_chapters.id AND btrim(current_revision.plain_text,$2)<>'') FROM wb_chapters WHERE project_id=$1 AND NOT deleted ORDER BY sort_order,id", id, chapterTextWhitespace)
 	if err != nil {
 		return out, err
 	}
 	for rows.Next() {
-		c, e := scanChapter(rows)
+		c, e := scanChapterSummary(rows)
 		if e != nil {
 			rows.Close()
 			return out, e
@@ -220,6 +230,8 @@ func (s *Service) GetChapter(ctx context.Context, id string) (Chapter, error) {
 		}
 		c.Revision = &r
 	}
+	hasText := c.Revision != nil && strings.TrimSpace(c.Revision.PlainText) != ""
+	c.HasText = &hasText
 	return c, nil
 }
 func (s *Service) CreateChapter(ctx context.Context, projectID, title, volume string) (Chapter, error) {
@@ -248,6 +260,8 @@ func (s *Service) CreateChapter(ctx context.Context, projectID, title, volume st
 	}
 	c.CurrentRevisionID = r.ID
 	c.Revision = &r
+	hasText := false
+	c.HasText = &hasText
 	if _, err = tx.Exec(ctx, "UPDATE wb_projects SET epoch=epoch+1 WHERE id=$1", projectID); err != nil {
 		return c, err
 	}

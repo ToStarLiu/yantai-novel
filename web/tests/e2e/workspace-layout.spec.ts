@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { authenticate } from "./auth";
+import { openChapterMaterial } from "./navigation";
 const origin = process.env.E2E_BASE_URL || "http://127.0.0.1:8089";
 const paragraphs = [
   "雨停的时候，林川走到了断桥下。远处传来船笛声，沈月却没有回头。",
@@ -165,7 +166,7 @@ test("selection actions prepare a message and quick commands preserve failed-sav
   await page.getByRole("button", { name: "扩写当前选段", exact: true }).click();
   await expect(page.locator(".copilot-selection")).toBeVisible();
   await expect(input).toHaveValue(/润色当前选段[\s\S]*扩写当前选段/);
-  await page.getByRole("button", { name: "本章章纲", exact: true }).click();
+  await openChapterMaterial(page, "本章章纲");
   await page.getByRole("button", { name: "灵感助手", exact: true }).click();
   await expect(input).toHaveValue(/润色当前选段/);
   const opener = page.getByRole("button", { name: "快捷操作", exact: true });

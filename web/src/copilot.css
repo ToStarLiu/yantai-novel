@@ -881,3 +881,18 @@
 .copilot-artifact > .row {
   flex-wrap: wrap;
 }
+
+.copilot-feedback-options {
+  color: #718465;
+  font-size: 10px;
+}
+.copilot-feedback-options summary {
+  cursor: pointer;
+  padding: 5px 3px;
+}
+.copilot-feedback-options > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 6px 0;
+}
