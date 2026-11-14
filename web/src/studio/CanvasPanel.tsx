@@ -28,6 +28,12 @@ import {
   type PanelProps,
 } from "../Studio";
 import { strings } from "../studioApi";
+import {
+  TaskMemoryControl,
+  TaskMemoryExclusion,
+  TaskMemoryUsage,
+  useTaskAuthorMemory,
+} from "../TaskAuthorMemory";
 export type BoardNode = {
   id: string;
   type: string;
@@ -73,6 +79,7 @@ export default function CanvasPanel({
   notify,
   refresh,
 }: PanelProps) {
+  const taskMemory = useTaskAuthorMemory(detail.project.id);
   const query = useQuery({
     queryKey: ["studio", detail.project.id],
     queryFn: () => api<Studio>(`/projects/${detail.project.id}/studio`),
@@ -205,6 +212,7 @@ export default function CanvasPanel({
       {
         intentId: id(),
         chapterId: targetChapter,
+        ignoreMemory: kind === "relations/explain" || taskMemory.ignoreMemory,
         nodeIds: [selected],
         inputRevisionId:
           detail.chapters.find((c) => c.id === targetChapter)
@@ -444,6 +452,13 @@ export default function CanvasPanel({
                   }
                 />
               </label>
+              <TaskMemoryControl
+                preference={taskMemory}
+                projectId={detail.project.id}
+                purpose="画布场景规划"
+                taskType="planning"
+                disabled={working}
+              />
               <StudioButton
                 disabled={working}
                 onClick={() =>
@@ -457,6 +472,7 @@ export default function CanvasPanel({
                 value={targetChapter}
                 onChange={setTargetChapter}
               />
+              <TaskMemoryExclusion taskType="analysis" />
               <StudioButton
                 disabled={working}
                 onClick={() =>
@@ -758,6 +774,7 @@ export default function CanvasPanel({
             }
             subtitle={activeRun.status}
           >
+            <TaskMemoryUsage run={activeRun} />
             <Result value={activeRun.output.text || activeRun.error} />
             {activeRun.type === "planning" &&
               activeRun.status === "Succeeded" && (

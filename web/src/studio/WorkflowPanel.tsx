@@ -13,6 +13,11 @@ import {
 } from "lucide-react";
 import { api, id, statusLabel } from "../api";
 import {
+  TaskMemoryControl,
+  TaskMemoryUsage,
+  useTaskAuthorMemory,
+} from "../TaskAuthorMemory";
+import {
   StudioCard,
   StudioButton,
   StudioError,
@@ -51,6 +56,8 @@ type Prompt = {
 };
 type Production = {
   id: string;
+  ownerId?: string;
+  error?: string;
   status: string;
   steps: {
     id: string;
@@ -80,6 +87,7 @@ export default function WorkflowPanel({
   refresh,
   mode,
 }: PanelProps & { mode: "workflow" | "production" }) {
+  const taskMemory = useTaskAuthorMemory(detail.project.id);
   const workflows = useQuery({
     queryKey: ["studio", detail.project.id, "workflows"],
     queryFn: () => api<Flow[]>("/workflows"),
@@ -618,6 +626,7 @@ export default function WorkflowPanel({
                 "POST",
                 {
                   workflowId: flowID,
+                  ignoreMemory: taskMemory.ignoreMemory,
                   chapterIds: detail.chapters
                     .filter((c) => c.order >= start && c.order <= end)
                     .map((c) => c.id),
@@ -636,6 +645,7 @@ export default function WorkflowPanel({
           <label>
             制作流程
             <select
+              aria-label="制作流程"
               value={flowID}
               onChange={(e) => setFlowID(e.target.value)}
               required
@@ -687,6 +697,13 @@ export default function WorkflowPanel({
               />
             </label>
           </div>
+          <TaskMemoryControl
+            preference={taskMemory}
+            projectId={detail.project.id}
+            purpose="批量制作"
+            disabled={working}
+            note="按创建本次制作的作者保存偏好和范围；一致性审稿、事实提取及交接检查不加载作者偏好。记忆变化后先复核，再继续后续步骤。"
+          />
           <p className="muted small">
             制作不会越过人工审批自动确认正文或记忆。未知价格保持未知，不因缺少账单数据假设免费。
           </p>
@@ -712,6 +729,7 @@ export default function WorkflowPanel({
           title="制作进度"
           subtitle={statusLabel[current.status] || current.status}
         >
+          {current.error && <p className="warning-box">{current.error}</p>}
           <div className="studio-actions">
             {["pause", "resume", "cancel"].map((action) => (
               <StudioButton
@@ -760,7 +778,20 @@ export default function WorkflowPanel({
                   <Check size={13} /> 批准此步
                 </StudioButton>
               )}
-              {s.taskRunId && <code>任务 {s.taskRunId.slice(0, 8)}</code>}
+              {s.taskRunId && (
+                <>
+                  <code>任务 {s.taskRunId.slice(0, 8)}</code>
+                  <TaskMemoryUsage
+                    compact
+                    run={{
+                      id: s.taskRunId,
+                      type: s.type || "",
+                      input: { ownerId: current.ownerId },
+                      stale: false,
+                    }}
+                  />
+                </>
+              )}
             </div>
           ))}
         </StudioCard>

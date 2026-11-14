@@ -1,0 +1,714 @@
+/* The writing surface owns its layout; book planning and Studio keep theirs. */
+.workspace-app.app {
+  --rail-width: 64px;
+  display: grid;
+  grid-template-columns:
+    var(--rail-width) var(--directory-width, 232px)
+    5px minmax(0, 1fr);
+  grid-template-rows: 52px minmax(0, 1fr);
+  background: #f2f4ef;
+}
+.workspace-app > .topbar {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  padding: 0 18px;
+  background: #fbfcf9;
+  gap: 16px;
+}
+.workspace-app .topbar .brand {
+  flex: none;
+}
+.workspace-app .brand-caption,
+.workspace-app .brand-line {
+  display: none;
+}
+.workspace-app .brand strong {
+  font-size: 21px;
+  letter-spacing: 2px;
+}
+.workspace-app .brand-icon {
+  width: 27px;
+  height: 27px;
+}
+.workspace-app .topbar-center {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  gap: 8px;
+  color: #7c877e;
+  font-size: 12px;
+}
+.workspace-app .workspace-book-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 320px;
+}
+.workspace-app .top-actions {
+  gap: 9px;
+  flex: none;
+}
+.workspace-app .top-actions .button {
+  padding: 6px 10px;
+  min-height: 30px;
+  font-size: 11px;
+}
+.workspace-app .top-actions > .author-home-nav,
+.workspace-app .top-actions > .skills-open,
+.workspace-app .top-actions > .icon-button[aria-label="作品设置"] {
+  display: none;
+}
+.workspace-app .workspace-focus-toggle.active {
+  background: #e8efe6;
+  color: #365641;
+  border-color: #b8c8b6;
+}
+.workspace-app .workspace-rail {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #edf1eb;
+  border-right: 1px solid #dfe5dc;
+  padding: 12px 6px 9px;
+  scrollbar-width: thin;
+}
+.workspace-app .workspace-rail-main,
+.workspace-app .workspace-rail-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.workspace-app .workspace-rail button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 55px;
+  width: 100%;
+  flex: none;
+  padding: 7px 2px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #7a897d;
+  font-size: 10px;
+  line-height: 1.25;
+}
+.workspace-app .workspace-rail button:hover {
+  background: #e1e8de;
+  color: #385644;
+}
+.workspace-app .workspace-rail button.active {
+  background: #dce7db;
+  color: #355641;
+  box-shadow: inset 2px 0 #4e7159;
+}
+.workspace-app .rail-divider {
+  height: 1px;
+  background: #dce4d7;
+  margin: 6px 8px;
+}
+.workspace-app > .workspace-directory {
+  grid-column: 2;
+  grid-row: 2;
+  position: static;
+  transform: none;
+  width: auto;
+  min-width: 0;
+  padding: 0;
+  border-right: 0;
+  box-shadow: none;
+  background: #f8faf6;
+}
+.workspace-app .directory-heading {
+  min-height: 46px;
+  padding: 0 11px 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+}
+.workspace-app .directory-heading > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #566d59;
+  font-size: 12px;
+  font-weight: 600;
+}
+.workspace-app .directory-heading > div {
+  display: flex;
+  gap: 2px;
+}
+.workspace-app .directory-heading small {
+  font-size: 10px;
+  font-weight: 400;
+  color: #9ba596;
+}
+.workspace-app .directory-heading .icon-button {
+  width: 24px;
+  height: 27px;
+}
+.workspace-app .project-switch {
+  margin: 0 15px 10px;
+}
+.workspace-app .project-switch select {
+  font-size: 11px;
+  color: #8b9687;
+  width: 100%;
+  padding-right: 14px;
+}
+.workspace-app .directory-search {
+  margin: 0 11px 12px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 8px;
+  min-height: 33px;
+  border: 1px solid #e1e6dc;
+  background: #fff;
+  border-radius: 5px;
+  color: #9ba794;
+}
+.workspace-app .directory-search:focus-within {
+  border-color: #97af91;
+  box-shadow: 0 0 0 2px #627d5010;
+}
+.workspace-app .directory-search input {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 6px 0;
+  box-shadow: none;
+  font-size: 11px;
+}
+.workspace-app .directory-search input:focus {
+  box-shadow: none;
+}
+.workspace-app .directory-search .icon-button {
+  width: 18px;
+  height: 22px;
+  padding: 0;
+}
+.workspace-app .chapter-list {
+  padding: 0 7px 12px;
+}
+.workspace-app .directory-volume > .volume-label {
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  width: 100%;
+  padding: 6px 7px;
+  margin: 3px 0 5px;
+  display: flex;
+  gap: 5px;
+  min-width: 0;
+  text-align: left;
+  font-size: 10px;
+  color: #89957e;
+  letter-spacing: 0;
+}
+.workspace-app .directory-volume > .volume-label span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.workspace-app .directory-volume > .volume-label small {
+  margin-left: auto;
+  font-size: 9px;
+  flex: none;
+  color: #a3ab9c;
+}
+.workspace-app .directory-volume > .volume-label:hover {
+  background: #edf1e8;
+}
+.workspace-app .chapter-nav {
+  margin-bottom: 2px;
+  min-height: 37px;
+  border-radius: 3px;
+}
+.workspace-app .chapter-link {
+  padding: 8px 9px;
+  min-height: 37px;
+  gap: 8px;
+}
+.workspace-app .chapter-title {
+  font-size: 12px;
+}
+.workspace-app .chapter-number {
+  font-size: 10px;
+  min-width: 16px;
+}
+.workspace-app .chapter-nav.selected {
+  background: #e5ede1;
+  box-shadow: inset 2px 0 #64835c;
+}
+.workspace-app .chapter-nav:focus-within .chapter-nav-actions {
+  display: flex;
+}
+.workspace-app .new-chapter {
+  margin: 8px 11px 14px;
+  min-height: 34px;
+  font-size: 11px;
+}
+.workspace-app .sidebar-bottom {
+  padding: 12px 14px;
+}
+.workspace-app .sidebar-bottom > button {
+  margin-bottom: 11px;
+  font-size: 10px;
+}
+.workspace-app .local-note {
+  font-size: 9px;
+}
+.workspace-app .workspace-divider {
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: transparent;
+  background: #f1f3ed;
+  min-width: 5px;
+  width: 5px;
+  touch-action: none;
+  z-index: 5;
+  transition: background 0.15s;
+}
+.workspace-app .workspace-divider:hover,
+.workspace-app .workspace-divider.dragging,
+.workspace-app .workspace-divider:focus-visible {
+  background: #d9e4d3;
+  color: #6b8564;
+  outline-offset: -1px;
+}
+.workspace-app .directory-divider {
+  grid-column: 3;
+  grid-row: 2;
+}
+.workspace-app > .workspace {
+  grid-column: 4;
+  grid-row: 2;
+  background: #fffefa;
+}
+.workspace-app .chapter-workspace {
+  grid-template-columns: minmax(0, 1fr) 5px var(--assistant-width, 360px);
+}
+.workspace-app.assistant-hidden .chapter-workspace {
+  grid-template-columns: minmax(0, 1fr);
+}
+.workspace-app .writing-pane {
+  grid-column: 1;
+  grid-row: 1;
+}
+.workspace-app .assistant-divider {
+  grid-column: 2;
+  grid-row: 1;
+}
+.workspace-app .chapter-workspace > .assistant-pane {
+  grid-column: 3;
+  grid-row: 1;
+  min-width: 0;
+}
+.workspace-app .chapter-header {
+  min-height: 46px;
+  padding: 7px 20px;
+  background: #fffefa;
+  gap: 10px;
+}
+.workspace-app .breadcrumbs {
+  min-width: 0;
+  font-size: 10px;
+}
+.workspace-app .breadcrumbs span {
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.workspace-app .chapter-header-actions {
+  gap: 10px;
+  flex: none;
+}
+.workspace-app .chapter-header-actions .text-button {
+  font-size: 10px;
+}
+.workspace-app .chapter-header-actions .icon-button {
+  width: 26px;
+  height: 26px;
+}
+.workspace-app .directory-restore {
+  display: none;
+}
+.workspace-app .writing-meta {
+  margin-top: 27px;
+  width: calc(100% - 88px);
+  max-width: 760px;
+}
+.workspace-app .chapter-title-wrap {
+  width: calc(100% - 88px);
+  max-width: 760px;
+  margin-top: 10px;
+}
+.workspace-app .chapter-title-input {
+  font-size: 27px;
+  line-height: 1.6;
+}
+.workspace-app .chapter-badges {
+  gap: 7px;
+  margin-top: 6px;
+}
+.workspace-app .editor-paper {
+  padding: 0 44px 35px;
+}
+.workspace-app .editor-toolbar {
+  max-width: 760px;
+  margin-top: 20px;
+  margin-bottom: 19px;
+}
+.workspace-app .manuscript {
+  max-width: 760px;
+  font-size: var(--manuscript-font-size, 17px);
+  line-height: var(--manuscript-line-height, 2.15);
+  letter-spacing: 0.3px;
+}
+.workspace-app .writing-footer {
+  min-height: 49px;
+  padding: 8px 20px;
+  font-size: 10px;
+}
+.workspace-app .writing-footer .button {
+  min-height: 30px;
+}
+.workspace-app .workspace-nav-scrim,
+.workspace-app .workspace-assistant-scrim {
+  display: none;
+}
+.workspace-app.directory-collapsed {
+  grid-template-columns: 64px minmax(0, 1fr);
+}
+.workspace-app.directory-collapsed > .workspace-directory,
+.workspace-app.directory-collapsed > .directory-divider {
+  display: none;
+}
+.workspace-app.directory-collapsed > .workspace {
+  grid-column: 2;
+}
+.workspace-app.directory-collapsed .directory-restore {
+  display: inline-flex;
+}
+.workspace-app.focus-mode {
+  grid-template-columns: minmax(0, 1fr);
+}
+.workspace-app.focus-mode > .workspace-rail,
+.workspace-app.focus-mode > .workspace-directory,
+.workspace-app.focus-mode > .directory-divider {
+  display: none;
+}
+.workspace-app.focus-mode > .workspace {
+  grid-column: 1;
+}
+.workspace-app.focus-mode .chapter-workspace {
+  grid-template-columns: minmax(0, 1fr);
+}
+.workspace-app.focus-mode .chapter-workspace > .assistant-pane,
+.workspace-app.focus-mode .assistant-divider {
+  display: none;
+}
+.workspace-app.focus-mode .directory-restore {
+  display: none;
+}
+.workspace-app.focus-mode .writing-meta,
+.workspace-app.focus-mode .chapter-title-wrap {
+  max-width: 800px;
+}
+.workspace-app.focus-mode .manuscript,
+.workspace-app.focus-mode .editor-toolbar {
+  max-width: 800px;
+}
+.workspace-app.focus-mode .top-actions > .studio-open,
+.workspace-app.focus-mode .top-actions > .provider-open {
+  display: none;
+}
+@media (min-width: 1550px) {
+  .workspace-app .editor-paper {
+    padding-inline: 64px;
+  }
+  .workspace-app .writing-meta,
+  .workspace-app .chapter-title-wrap {
+    width: calc(100% - 128px);
+  }
+}
+@media (max-width: 1159px) {
+  .workspace-app .chapter-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .workspace-app .assistant-divider {
+    display: none;
+  }
+  .workspace-app .chapter-workspace > .assistant-pane {
+    position: fixed;
+    right: 0;
+    top: 52px;
+    bottom: 0;
+    width: min(390px, calc(100vw - 48px));
+    height: auto;
+    z-index: 45;
+    grid-area: auto;
+    box-shadow: -8px 0 30px #263a2b16;
+  }
+  .workspace-app .workspace-assistant-scrim {
+    display: block;
+    border: 0;
+    background: #26372b25;
+    position: fixed;
+    inset: 52px 0 0;
+    z-index: 44;
+    width: 100%;
+    border-radius: 0;
+  }
+  .workspace-app.focus-mode .workspace-assistant-scrim {
+    display: none;
+  }
+  .workspace-app .top-actions > .studio-open {
+    display: none;
+  }
+  .workspace-app .topbar-center {
+    display: flex;
+  }
+  .workspace-app .workspace-book-title {
+    max-width: 170px;
+  }
+  .workspace-app .writing-meta,
+  .workspace-app .chapter-title-wrap {
+    width: calc(100% - 80px);
+  }
+  .workspace-app .editor-paper {
+    padding-inline: 40px;
+  }
+}
+@media (max-width: 760px) {
+  .workspace-app.app,
+  .workspace-app.directory-collapsed,
+  .workspace-app.focus-mode {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 52px minmax(0, 1fr);
+  }
+  .workspace-app > .topbar {
+    gap: 7px;
+    padding: 0 10px;
+  }
+  .workspace-app .brand {
+    flex: 1;
+    gap: 6px;
+  }
+  .workspace-app .brand strong {
+    font-size: 20px;
+  }
+  .workspace-app .brand-icon {
+    width: 24px;
+    height: 24px;
+  }
+  .workspace-app .topbar-center,
+  .workspace-app > .workspace-rail,
+  .workspace-app > .directory-divider {
+    display: none;
+  }
+  .workspace-app > .workspace,
+  .workspace-app.directory-collapsed > .workspace {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .workspace-app .top-actions {
+    gap: 5px;
+  }
+  .workspace-app .top-actions > .author-home-nav {
+    display: none;
+  }
+  .workspace-app .top-actions > .skills-open {
+    display: inline-flex;
+    padding: 5px;
+    min-height: 28px;
+    font-size: 0;
+    gap: 0;
+    width: 28px;
+  }
+  .workspace-app .top-actions > .provider-open {
+    display: inline-flex;
+    padding: 5px;
+    min-height: 28px;
+    font-size: 0;
+    gap: 0;
+    width: 28px;
+  }
+  .workspace-app .top-actions > .workspace-focus-toggle {
+    width: 28px;
+    padding: 5px;
+  }
+  .workspace-app .workspace-focus-toggle span,
+  .workspace-app .top-separator,
+  .workspace-app .top-actions > .icon-button[aria-label="导入作品"] {
+    display: none;
+  }
+  .workspace-app .top-actions .author-avatar {
+    width: 26px;
+    height: 26px;
+  }
+  .workspace-app .mobile-only {
+    display: inline-flex;
+  }
+  .workspace-app > .workspace-directory,
+  .workspace-app.directory-collapsed > .workspace-directory {
+    display: flex;
+    position: fixed;
+    top: 52px;
+    bottom: 0;
+    left: 0;
+    width: min(300px, calc(100vw - 48px));
+    transform: translateX(-102%);
+    z-index: 61;
+    box-shadow: 8px 0 25px #2d3d2512;
+  }
+  .workspace-app > .workspace-directory.mobile-visible {
+    transform: translateX(0);
+  }
+  .workspace-app .workspace-nav-scrim {
+    display: block;
+    position: fixed;
+    inset: 52px 0 0;
+    width: 100%;
+    background: #26372b25;
+    border: 0;
+    border-radius: 0;
+    z-index: 60;
+  }
+  .workspace-app.focus-mode > .workspace-directory {
+    display: none;
+  }
+  .workspace-app .directory-restore {
+    display: none;
+  }
+  .workspace-app .chapter-header {
+    padding: 7px 15px;
+    min-height: 44px;
+  }
+  .workspace-app .chapter-header-actions {
+    gap: 6px;
+  }
+  .workspace-app .breadcrumbs {
+    gap: 5px;
+  }
+  .workspace-app .breadcrumbs span:first-of-type {
+    max-width: 105px;
+  }
+  .workspace-app .writing-meta {
+    margin-top: 23px;
+  }
+  .workspace-app .writing-meta,
+  .workspace-app .chapter-title-wrap {
+    width: calc(100% - 44px);
+  }
+  .workspace-app .editor-paper {
+    padding-inline: 22px;
+  }
+  .workspace-app .chapter-title-input {
+    font-size: 25px;
+  }
+  .workspace-app .chapter-badges {
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .workspace-app .writing-footer {
+    padding: 8px 12px;
+    gap: 6px;
+  }
+  .workspace-app .writing-footer > span {
+    font-size: 9px;
+  }
+  .workspace-app .writing-footer > div {
+    gap: 6px;
+  }
+  .workspace-app .chapter-workspace > .assistant-pane {
+    width: min(390px, calc(100vw - 32px));
+    z-index: 55;
+  }
+  .workspace-app .workspace-assistant-scrim {
+    z-index: 54;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-app * {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.workspace-app .directory-mobile-actions {
+  display: none;
+}
+@media (max-width: 1159px) {
+  .workspace-app .assistant-mobile-close {
+    display: inline-flex;
+  }
+}
+@media (max-width: 760px) {
+  .workspace-app .directory-mobile-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+    padding: 0 11px 11px;
+  }
+  .workspace-app .directory-mobile-actions button {
+    border: 1px solid #e0e7db;
+    background: transparent;
+    border-radius: 4px;
+    padding: 7px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: #718268;
+    font-size: 10px;
+  }
+  .workspace-app .directory-mobile-actions button:last-child {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+}
+
+.workspace-app .workspace-command-open {
+  gap: 7px;
+  color: #71806b;
+  min-width: 128px;
+  justify-content: space-between;
+}
+.workspace-app .workspace-command-open kbd {
+  border: 1px solid #dbe2d5;
+  background: #f5f7f1;
+  border-radius: 4px;
+  font-size: 9px;
+  padding: 1px 4px;
+  color: #899680;
+}
+@media (max-width: 1200px) {
+  .workspace-app .workspace-command-open {
+    min-width: 0;
+  }
+  .workspace-app .workspace-command-open span {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .workspace-app .workspace-command-open {
+    padding: 5px;
+    min-width: 28px;
+    width: 28px;
+    justify-content: center;
+  }
+  .workspace-app .workspace-command-open kbd {
+    display: none;
+  }
+}

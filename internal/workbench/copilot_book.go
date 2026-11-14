@@ -57,8 +57,15 @@ func boundedBookBrief(in StoryBrief) (StoryBrief, bool) {
 // The book baseline has no chapter dependency. A project with zero chapters is
 // a first-class planning context, while authoring sessions keep chapter fences.
 func copilotSnapshotCurrent(ctx context.Context, db snapshotDB, t CopilotTurn) (bool, error) {
+	if t.Input.AuthorMemory != nil && t.Input.AuthorMemory.OwnerID != t.Input.Principal.ID {
+		return false, nil
+	}
 	if t.Input.Scope != "book" {
-		return snapshotCurrent(ctx, db, copilotSnapshot(t))
+		current, err := snapshotCurrent(ctx, db, copilotSnapshot(t))
+		if err != nil || !current {
+			return current, err
+		}
+		return copilotCandidateCurrent(ctx, db, t.ProjectID, t.Input.ChapterID, t.Input.InputRevisionID, t.Input.Principal.ID, t.Input.Candidate)
 	}
 	var epoch int64
 	var state string
@@ -67,6 +74,9 @@ func copilotSnapshotCurrent(ctx context.Context, db snapshotDB, t CopilotTurn) (
 	}
 	if epoch != t.Input.Epoch || state != t.Input.StateVersionID || len(t.Input.StudioVersions) != 3 {
 		return false, nil
+	}
+	if valid, err := copilotAuthorMemoryCurrent(ctx, db, t.Input); err != nil || !valid {
+		return valid, err
 	}
 	if valid, err := writingSkillSnapshotCurrent(ctx, db, t.ProjectID, t.Input.WritingSkills); err != nil || !valid {
 		return valid, err
@@ -138,6 +148,9 @@ func (s *Service) bookToolTx(ctx context.Context, t CopilotTurn, minimum string)
 }
 
 func (s *Service) ExecuteBookCopilotTool(ctx context.Context, t CopilotTurn, name, callID string, args json.RawMessage) (CopilotToolResult, error) {
+	if name == "read_author_memory" || name == "propose_author_memory" {
+		return s.executeCopilotAuthorMemoryTool(ctx, t, name, args)
+	}
 	minimum := "viewer"
 	if name == "propose_book_plan" {
 		minimum = "editor"
@@ -368,14 +381,48 @@ func readCopilotSettings(ctx context.Context, db queryer, pid string, epoch int6
 	if pov != "" && args.ContentOffset != 0 {
 		return CopilotToolResult{}, ErrForbidden
 	}
-	rows, err := db.Query(ctx, `SELECT id,project_id,kind,name,content FROM wb_settings WHERE project_id=$1 AND ($2='' OR id=$2) AND ($3='' OR kind=$3) AND ($4='' OR strpos(lower(name||CASE WHEN $6 THEN '' ELSE ' '||content END),lower($4))>0) ORDER BY kind,name,id LIMIT 9 OFFSET $5`, pid, args.ID, args.Kind, args.Query, args.Offset, pov != "")
+	var profile *copilotWritingProfile
+	if args.ID == bookWritingProfileID {
+		if pov != "" {
+			return CopilotToolResult{}, ErrForbidden
+		}
+		if args.Kind != "" && args.Kind != "style" {
+			return CopilotToolResult{}, fmt.Errorf("本书文风设定类型须为style")
+		}
+	}
+	if pov == "" && (args.ID == bookWritingProfileID || (args.ID == "" && args.Kind == "style")) {
+		var profileErr error
+		profile, profileErr = loadCopilotWritingProfile(ctx, db, pid)
+		if profileErr != nil {
+			return CopilotToolResult{}, profileErr
+		}
+		if profile != nil && args.Query != "" && !strings.Contains(strings.ToLower("本书文风与约束 "+profile.Content), strings.ToLower(args.Query)) {
+			profile = nil
+		}
+	}
+	items := []map[string]any{}
+	truncated, budget := false, 3600
+	queryOffset := args.Offset
+	if profile != nil {
+		if args.Offset == 0 {
+			item, err := profile.item(pid, args.ContentOffset, min(itemLimit, budget))
+			if err != nil {
+				return CopilotToolResult{}, err
+			}
+			items = append(items, item)
+			budget -= len([]rune(item["content"].(string)))
+		} else {
+			queryOffset--
+		}
+	}
+	if args.ID == bookWritingProfileID {
+		return CopilotToolResult{Content: map[string]any{"source": "author-settings", "projectId": pid, "epoch": epoch, "settings": items, "offset": args.Offset, "nextOffset": args.Offset + len(items), "truncated": false, "authority": "本书文风是写作约束，不是故事事实或角色知识；按id/contentOffset读取完整内容。"}}, nil
+	}
+	rows, err := db.Query(ctx, `SELECT id,project_id,kind,name,content FROM wb_settings WHERE project_id=$1 AND ($2='' OR id=$2) AND ($3='' OR kind=$3) AND ($4='' OR strpos(lower(name||CASE WHEN $6 THEN '' ELSE ' '||content END),lower($4))>0) ORDER BY kind,name,id LIMIT 9 OFFSET $5`, pid, args.ID, args.Kind, args.Query, queryOffset, pov != "")
 	if err != nil {
 		return CopilotToolResult{}, err
 	}
 	defer rows.Close()
-	items := []map[string]any{}
-	truncated := false
-	budget := 3600
 	for rows.Next() {
 		var item Setting
 		if err := rows.Scan(&item.ID, &item.ProjectID, &item.Kind, &item.Name, &item.Content); err != nil {

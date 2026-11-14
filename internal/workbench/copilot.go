@@ -40,6 +40,9 @@ type CopilotTurnRequest struct {
 	Mode                   string `json:"mode"`
 	PointOfViewCharacterID string `json:"pointOfViewCharacterId,omitempty"`
 	Scope                  string `json:"scope,omitempty"`
+	IgnoreMemory           bool   `json:"ignoreMemory,omitempty"`
+	CandidateRunID         string `json:"candidateRunId,omitempty"`
+	CandidateSelection     string `json:"candidateSelection,omitempty"`
 }
 type CopilotInput struct {
 	CopilotTurnRequest
@@ -55,6 +58,9 @@ type CopilotInput struct {
 	ContextKey       string                `json:"contextKey"`
 	BookIndexHash    string                `json:"bookIndexHash,omitempty"`
 	WritingSkills    *WritingSkillSnapshot `json:"writingSkills,omitempty"`
+	AuthorMemory     *AuthorMemorySnapshot `json:"authorMemory,omitempty"`
+	SuggestMemories  bool                  `json:"suggestMemories"`
+	Candidate        *CandidateReference   `json:"candidate,omitempty"`
 }
 type CopilotTurn struct {
 	ID         string          `json:"id"`
@@ -212,7 +218,7 @@ func (s *Service) SubmitCopilotTurn(ctx context.Context, sid string, in CopilotT
 	if e != nil {
 		return CopilotTurn{}, e
 	}
-	if in.IntentID == "" || len(in.IntentID) > 128 || len(in.Text) > 20000 || len(in.Selection) > 12000 {
+	if in.IntentID == "" || len(in.IntentID) > 128 || len(in.Text) > 20000 || len(in.Selection) > 12000 || len(in.CandidateRunID) > 128 || len(in.CandidateSelection) > 12000 {
 		return CopilotTurn{}, fmt.Errorf("对话输入或意图ID无效")
 	}
 	if in.Mode == "" {
@@ -220,6 +226,9 @@ func (s *Service) SubmitCopilotTurn(ctx context.Context, sid string, in CopilotT
 	}
 	if in.Mode != "chat" && in.Mode != "compact" {
 		return CopilotTurn{}, fmt.Errorf("模式须为chat或compact")
+	}
+	if (in.CandidateRunID == "" && in.CandidateSelection != "") || (in.CandidateRunID != "" && (in.Selection != "" || in.Mode == "compact")) {
+		return CopilotTurn{}, fmt.Errorf("候选改稿须明确绑定候选，不能同时引用原稿选段或压缩对话")
 	}
 	if in.Mode == "chat" && strings.TrimSpace(in.Text) == "" {
 		return CopilotTurn{}, fmt.Errorf("请输入对话内容")
@@ -236,7 +245,7 @@ func (s *Service) SubmitCopilotTurn(ctx context.Context, sid string, in CopilotT
 	in.Scope = session.Scope
 	var c Chapter
 	if in.Scope == "book" {
-		if in.ChapterID != "" || in.InputRevisionID != "" || in.Selection != "" || in.PointOfViewCharacterID != "" {
+		if in.ChapterID != "" || in.InputRevisionID != "" || in.Selection != "" || in.PointOfViewCharacterID != "" || in.CandidateRunID != "" || in.CandidateSelection != "" {
 			return CopilotTurn{}, fmt.Errorf("全书规划不接受章节选段或人物知识视角；请使用章节会话")
 		}
 	} else {
@@ -311,13 +320,38 @@ func (s *Service) SubmitCopilotTurn(ctx context.Context, sid string, in CopilotT
 	}
 	input := CopilotInput{CopilotTurnRequest: in, Principal: p, Epoch: detail.Project.Epoch, BlueprintVersion: c.BlueprintVersion, StateVersionID: detail.Project.StateVersionID, StudioVersions: studio.Versions, SessionVersion: session.Version, ProviderID: provider, Policy: policy, MaxOutputTokens: prefs.MaxOutputTokens}
 	input.WritingSkills = &skills
+	if in.CandidateRunID != "" {
+		parent, err := loadCopilotCandidate(ctx, s.DB, session.ProjectID, c.ID, in.InputRevisionID, p.ID, in.CandidateRunID)
+		if err != nil {
+			return CopilotTurn{}, err
+		}
+		if in.CandidateSelection != "" && strings.Count(parent.Output.Text, in.CandidateSelection) != 1 {
+			return CopilotTurn{}, fmt.Errorf("候选选段须在绑定候选中唯一出现")
+		}
+		input.Candidate = candidateReference(parent)
+	}
+	memory, e := s.ResolveAuthorMemories(ctx, session.ProjectID, in.Text)
+	if e != nil {
+		return CopilotTurn{}, e
+	}
+	memorySettings, e := s.GetAuthorMemorySettings(ctx)
+	if e != nil {
+		return CopilotTurn{}, e
+	}
+	if in.IgnoreMemory {
+		memory.Enabled = false
+		memory.Items = []AuthorMemory{}
+		memory.Hash = "ignored"
+	}
+	input.AuthorMemory = &memory
+	input.SuggestMemories = memorySettings.SuggestMemories && !in.IgnoreMemory
 	if in.Scope == "book" {
 		input.BookIndexHash, e = bookIndexHash(ctx, s.DB, session.ProjectID)
 		if e != nil {
 			return CopilotTurn{}, e
 		}
 	}
-	contextRaw, _ := json.Marshal(map[string]any{"scope": in.Scope, "chapterId": c.ID, "revisionId": in.InputRevisionID, "epoch": input.Epoch, "state": input.StateVersionID, "blueprint": input.BlueprintVersion, "studio": input.StudioVersions, "owner": p.ID, "pov": in.PointOfViewCharacterID, "bookIndexHash": input.BookIndexHash, "writingSkillsVersion": skills.Version, "writingSkillsHash": skills.Hash})
+	contextRaw, _ := json.Marshal(map[string]any{"scope": in.Scope, "chapterId": c.ID, "revisionId": in.InputRevisionID, "epoch": input.Epoch, "state": input.StateVersionID, "blueprint": input.BlueprintVersion, "studio": input.StudioVersions, "owner": p.ID, "pov": in.PointOfViewCharacterID, "bookIndexHash": input.BookIndexHash, "writingSkillsVersion": skills.Version, "writingSkillsHash": skills.Hash, "authorMemoryVersion": memory.Version, "authorMemoryHash": memory.Hash, "ignoreMemory": in.IgnoreMemory, "candidate": input.Candidate})
 	input.ContextKey = job.Hash(contextRaw)
 	raw, _ := json.Marshal(input)
 	tx, e := s.DB.Begin(ctx)

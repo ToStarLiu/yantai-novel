@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { textOf, userMessage } from './context.js';
+import { summaryMessage, textOf, userMessage } from './context.js';
 import { fauxAssistantMessage, type Message } from '@earendil-works/pi-ai';
 
 async function harness(start:Record<string,unknown>,onTool?:(message:any)=>unknown){
@@ -156,4 +156,99 @@ test('enabled writing skill is read through the real Pi tool loop before source 
  assert.deepEqual(records.filter(r=>r.type==='tool').map(r=>r.name),['read_writing_skill','read_chapter','search_story_memory']);
  assert.equal(records.find(r=>r.type==='tool').args.skillId,'skill1');
  assert.ok(JSON.stringify(records.filter(r=>r.type==='authorize').at(-1).messages).includes('Keep actions concrete.'));
+});
+
+
+const memoryReadTool={name:'read_author_memory',description:'读取本轮私有作者偏好',parameters:{type:'object',properties:{memoryId:{type:'string'},maxChars:{type:'integer'}},required:['memoryId'],additionalProperties:false}};
+const writingSkillReadTool={name:'read_writing_skill',description:'读取冻结写作技能',parameters:{type:'object',properties:{skillId:{type:'string'},path:{type:'string'},maxChars:{type:'integer'}},required:['skillId'],additionalProperties:false}};
+
+test('author memory is read through Pi before writing skill, current prose and candidate work',async()=>{
+ const base=start() as any;
+ const records=await harness(start({
+   text:'把这段改写得含蓄一些',
+   context:{chapterId:'chapter1',authorMemory:{items:[{id:'memory1',scope:'author',kind:'voice',preview:'动作承担潜台词。'}]},writingSkills:{items:[{id:'skill1',name:'dialogue',preview:'简洁对白。'}]}},
+   tools:[...base.tools,memoryReadTool,writingSkillReadTool,{name:'create_revision_candidate',description:'创建待采用候选',parameters:{type:'object',properties:{text:{type:'string'},mode:{type:'string'},title:{type:'string'}},required:['text','mode'],additionalProperties:false}},{name:'show_diff',description:'查看差异',parameters:{type:'object',properties:{runId:{type:'string'}},required:['runId'],additionalProperties:false}}],
+   maxSteps:8,
+ }),message=>({content:{source:message.name==='read_author_memory'?'private-author-memory':message.name==='read_writing_skill'?'frozen-author-guide':'saved-source',text:message.name==='read_author_memory'?'PRIVATE-VOICE: 动作承担潜台词。':message.name==='read_writing_skill'?'SKILL-DIALOGUE: 避免重复解释。':'她没有透露秘密。'},...(message.name==='create_revision_candidate'?{artifact:{kind:'revision-candidate',runId:'candidate1'}}:{})}));
+ assert.equal(records.at(-1).type,'done');
+ assert.deepEqual(records.filter(r=>r.type==='tool').map(r=>r.name),['read_author_memory','read_writing_skill','read_chapter','create_revision_candidate','show_diff']);
+ assert.equal(records.find(r=>r.type==='tool').args.memoryId,'memory1');
+ const candidateRequest=records.filter(r=>r.type==='authorize')[3];
+ assert.ok(JSON.stringify(candidateRequest.messages).includes('PRIVATE-VOICE: 动作承担潜台词。'));
+ assert.ok(JSON.stringify(candidateRequest.messages).includes('SKILL-DIALOGUE: 避免重复解释。'));
+ assert.equal(records.filter(r=>r.type==='usage').every(r=>r.usage.reported===false),true);
+});
+
+test('book planning reads private author preferences before current book brief and plan proposal',async()=>{
+ const records=await harness(start({text:'先规划书籍主线',context:{scope:'book',authorMemory:{items:[{id:'memory-book',scope:'book',kind:'workflow',preview:'先给三个取舍。'}]}},tools:[memoryReadTool,{name:'read_book_brief',description:'读取书籍规划',parameters:{type:'object',properties:{},additionalProperties:false}},{name:'propose_book_plan',description:'保存待采用全书规划',parameters:{type:'object',properties:{text:{type:'string'},title:{type:'string'}},required:['text'],additionalProperties:false}}]}));
+ assert.equal(records.at(-1).type,'done');
+ assert.deepEqual(records.filter(r=>r.type==='tool').map(r=>r.name),['read_author_memory','read_book_brief','propose_book_plan']);
+});
+
+function oldPreferenceHistory():Message[]{
+ return [userMessage('OLD-USER-VOICE: 我喜欢每段结尾解释人物情绪。'),fauxAssistantMessage('OLD-ASSISTANT-VOICE: 以后每段解释情绪。'),summaryMessage('OLD-SUMMARY-VOICE: 解释所有情绪。'),{role:'toolResult',toolCallId:'old-memory',toolName:'read_author_memory',content:[{type:'text',text:'OLD-TOOL-VOICE: 解释情绪'}],isError:false,timestamp:1}];
+}
+
+test('a memory reset never dispatches old user preference, answer, tool or summary even when the source baseline matches',async()=>{
+ for(const historyCurrent of [true,false]){
+   const history=oldPreferenceHistory();
+   const archive=JSON.stringify(history);
+   const records=await harness(start({text:'本轮只讨论人物动作',messages:history,historyCurrent,historyReplayAllowed:false}));
+   assert.equal(records.at(-1).type,'done');
+   assert.equal(records.at(-1).contextStats.historyRebased,true);
+   for(const auth of records.filter(r=>r.type==='authorize'))assert.equal(JSON.stringify(auth.messages).includes('OLD-'),false);
+   assert.equal(JSON.stringify(records.at(-1).messages).includes('OLD-'),false);
+   assert.ok(JSON.stringify(records.at(-1).messages).includes('本轮只讨论人物动作'));
+   assert.deepEqual(records.filter(r=>r.type==='tool').map(r=>r.name),['read_chapter','search_story_memory']);
+   assert.equal(records.filter(r=>r.type==='delta').map(r=>r.text).join('').includes('继续刚才的讨论'),false);
+   assert.equal(JSON.stringify(history),archive);
+ }
+});
+
+test('a memory reset precedes explicit compaction so forgotten material is never summarized again',async()=>{
+ const records=await harness(start({mode:'compact',text:'',messages:oldPreferenceHistory(),historyCurrent:false,historyReplayAllowed:false}));
+ assert.equal(records.at(-1).type,'done');
+ assert.equal(records.filter(r=>r.type==='authorize').length,0);
+ assert.deepEqual(records.at(-1).messages,[]);
+ assert.equal(JSON.stringify(records).includes('OLD-'),false);
+});
+
+test('an ordinary prose baseline change still retains original author intent while removing old model derivations',async()=>{
+ const history:Message[]=[userMessage('INTENT-KEEP: 只核对动作，不生成候选。'),fauxAssistantMessage('DROP-OLD-ANSWER: 她的秘密身份已确定。'),summaryMessage('DROP-OLD-SUMMARY: 她是王女。')];
+ const records=await harness(start({text:'检查新保存的正文',messages:history,historyCurrent:false,historyReplayAllowed:true}));
+ assert.equal(records.at(-1).type,'done');
+ const first=JSON.stringify(records.find(r=>r.type==='authorize').messages);
+ assert.ok(first.includes('INTENT-KEEP'));
+ assert.equal(first.includes('DROP-OLD'),false);
+});
+
+
+test('bound candidate iteration reads the original then exact candidate pages and returns parent comparison',async()=>{
+ const initial=start(); const selection='唯一候选选段';
+ const records=await harness(start({text:'只打磨候选这一段',context:{chapterId:'chapter1',candidate:{runId:'parent-candidate',hash:'parent-hash',selectionChars:selection.length}},tools:[...initial.tools,{name:'read_revision_candidate',description:'读取本轮绑定候选',parameters:{type:'object',properties:{offset:{type:'integer'},maxChars:{type:'integer'},selection:{type:'boolean'}},additionalProperties:false}},{name:'create_revision_candidate',description:'创建子候选',parameters:{type:'object',properties:{text:{type:'string'},mode:{type:'string'},title:{type:'string'}},required:['text','mode'],additionalProperties:false}},{name:'show_diff',description:'对比父版',parameters:{type:'object',properties:{runId:{type:'string'},compareTo:{type:'string'}},additionalProperties:false}}]}),m=>{
+  if(m.name==='read_revision_candidate'){
+   assert.equal(m.args.selection,true);
+   if(!m.args.offset)return {content:{runId:'parent-candidate',hash:'parent-hash',text:'唯一候选',offset:0,nextOffset:4,totalChars:7,truncated:true}};
+   assert.equal(m.args.offset,4);return {content:{runId:'parent-candidate',hash:'parent-hash',text:'选段尾',offset:4,nextOffset:7,totalChars:7,truncated:true}};
+  }
+  if(m.name==='create_revision_candidate'){
+   assert.equal(m.args.mode,'selection');return {content:{runId:'child-candidate'},artifact:{kind:'revision-candidate',runId:'child-candidate',parentCandidateRunId:'parent-candidate',sourceRevisionId:'revision1',text:'完整子候选'}};
+  }
+  if(m.name==='show_diff'){assert.equal(m.args.runId,'child-candidate');assert.equal(m.args.compareTo,'parent');return {content:{diff:[]},artifact:{kind:'diff',runId:'child-candidate',parentCandidateRunId:'parent-candidate',comparisonRunId:'parent-candidate',comparisonBase:'parent'}};}
+  return {content:{revisionId:'revision1',text:'已保存原稿。'}};
+ });
+ assert.equal(records.at(-1).type,'done');
+ assert.deepEqual(records.filter(r=>r.type==='tool').map(r=>r.name),['read_chapter','read_revision_candidate','read_revision_candidate','create_revision_candidate','show_diff']);
+ const final=JSON.stringify(records.at(-1).messages);assert.ok(final.includes('parentCandidateRunId'));assert.ok(final.includes('comparisonBase'));
+});
+
+test('an explicitly bound candidate is read independently of truncated historical candidate previews',async()=>{
+ const previous=[userMessage('旧一轮改稿'),fauxAssistantMessage('旧稿摘要，不能替代本轮全文')];
+ const initial=start(); const records=await harness(start({text:'继续打磨整份候选',messages:previous,context:{candidate:{runId:'bound-parent',hash:'hash',selectionChars:0}},tools:[...initial.tools,{name:'read_revision_candidate',description:'读取候选',parameters:{type:'object',properties:{offset:{type:'integer'},maxChars:{type:'integer'},selection:{type:'boolean'}}}},{name:'create_revision_candidate',description:'创建候选',parameters:{type:'object',properties:{text:{type:'string'},mode:{type:'string'},title:{type:'string'}}}},{name:'show_diff',description:'比较',parameters:{type:'object',properties:{runId:{type:'string'},compareTo:{type:'string'}}}}]}),m=>{
+  if(m.name==='read_revision_candidate')return {content:{text:'完整父稿：保留旧稿里已经做出的修改。',offset:0,nextOffset:20,totalChars:20,truncated:false}};
+  if(m.name==='create_revision_candidate'){assert.ok(m.args.text.startsWith('完整父稿：保留旧稿里已经做出的修改。'));assert.equal(m.args.text.includes('旧稿摘要'),false);assert.equal(m.args.mode,'chapter');return {artifact:{runId:'child'}};}
+  if(m.name==='show_diff')return {content:{diff:[]}};
+  return {content:{revisionId:'revision1',text:'当前保存原稿'}};
+ });
+ assert.equal(records.at(-1).type,'done');assert.ok(records.filter(r=>r.type==='tool').some(r=>r.name==='read_revision_candidate'));
 });

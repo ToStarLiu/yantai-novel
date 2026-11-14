@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Plus, Save, Trash2, Sparkles } from "lucide-react";
 import { api, id } from "../api";
+import { TaskMemoryExclusion } from "../TaskAuthorMemory";
 import {
   StudioCard,
   StudioButton,
@@ -290,6 +291,7 @@ export default function ScenePanel({
                 />
               </label>
             ))}
+            <TaskMemoryExclusion taskType="handoff" />
             <StudioButton
               disabled={working || !scene.chapterId}
               onClick={() =>
@@ -298,6 +300,7 @@ export default function ScenePanel({
                   await api(`/chapters/${scene.chapterId}/runs`, "POST", {
                     intentId: id(),
                     taskType: "handoff",
+                    ignoreMemory: true,
                     sceneId: scene.id,
                     inputRevisionId:
                       detail.chapters.find((c) => c.id === scene.chapterId)

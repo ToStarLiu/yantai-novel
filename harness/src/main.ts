@@ -8,7 +8,7 @@ import { clearOldToolResults, COMPACTION_PROMPT, estimateTokens, projectToolResu
 
 type Start = {
   type: 'start'; turnId: string; mode: 'chat'|'compact'; text: string; systemPrompt: string;
-  messages: Message[]; historyCurrent?: boolean; context: Record<string, unknown>;
+  messages: Message[]; historyCurrent?: boolean; historyReplayAllowed?: boolean; context: Record<string, unknown>;
   tools: {name:string;description:string;parameters:object}[];
   model: {baseUrl:string;apiKey:string;noAuth?:boolean;headers:Record<string,string>;model:string;api:string;fake:boolean;maxOutputTokens:number;contextWindow:number};
   maxSteps:number;maxContextTokens:number;keepRecent:number;
@@ -39,7 +39,8 @@ async function run(start:Start){
   const outputLimit=Math.min(12000,Math.max(128,start.model.maxOutputTokens||3000));
   const budget=Math.min(start.maxContextTokens||16000,Math.max(4000,(start.model.contextWindow||64000)-outputLimit-2000));
   const model:Model<any>={id:start.model.model,name:start.model.model,provider:'yantai',api:start.model.api==='responses'?'openai-responses':'openai-completions',baseUrl:start.model.api==='ollama'?start.model.baseUrl.replace(/\/$/,'')+'/v1':start.model.baseUrl,input:['text'],cost:{input:0,output:0,cacheRead:0,cacheWrite:0},reasoning:false,contextWindow:start.model.contextWindow||64000,maxTokens:outputLimit};
-  const stats:ContextStats={estimatedInputTokens:0,inputBudget:budget,historyRebased:start.historyCurrent===false,clearedToolResults:0,compactedMessages:0,summaryChars:0};
+  const stats:ContextStats={estimatedInputTokens:0,inputBudget:budget,historyRebased:start.historyCurrent===false||start.historyReplayAllowed===false,clearedToolResults:0,compactedMessages:0,summaryChars:0};
+  const replayedHistory=sanitizeTranscript(rebaseHistory(start.messages,start.historyCurrent!==false,start.historyReplayAllowed!==false));
   let modelCalls=0,toolCalls=0,lastFailure='',lastSummary='',lastDisposition='Permanent';
   const knownTools=new Set(start.tools.map(tool=>tool.name));
 
@@ -52,14 +53,36 @@ async function run(start:Start){
     const end=context.messages[context.messages.length-1];
     const call=(name:string,args:JsonObject)=>fauxAssistantMessage(fauxToolCall(name,args),{stopReason:'toolUse'});
     if(context.messages.some(m=>m.role==='system'&&textOf(m).includes('压缩小说助手')))return fauxAssistantMessage('作者要求：保留人物知识边界与伤势。已讨论的建议仍是候选，未确认事实。未完成：继续比较方案；引用前重新读取正文和记忆。');
-    if(end?.role==='user'){
+    const readSource=()=>knownTools.has('read_book_brief')?call('read_book_brief',{}):call('read_chapter',{maxChars:4000});
+    const readProfileOrSource=()=>knownTools.has('read_settings')&&(start.context.writingProfile as any)?.id?call('read_settings',{id:(start.context.writingProfile as any).id}):readSource();
+    const readSkillOrSource=()=>{
       const skill=(start.context.writingSkills as any)?.items?.[0];
-      if(knownTools.has('read_writing_skill')&&skill?.id)return call('read_writing_skill',{skillId:skill.id,path:'SKILL.md',maxChars:1200});
-      return knownTools.has('read_book_brief')?call('read_book_brief',{}):call('read_chapter',{maxChars:4000});
+      return knownTools.has('read_writing_skill')&&skill?.id?call('read_writing_skill',{skillId:skill.id,path:'SKILL.md',maxChars:1200}):readProfileOrSource();
+    };
+    if(end?.role==='user'){
+      const memory=(start.context.authorMemory as any)?.items?.[0];
+      if(knownTools.has('read_author_memory')&&memory?.id)return call('read_author_memory',{memoryId:memory.id,maxChars:800});
+      return readSkillOrSource();
     }
-    if(end?.role==='toolResult'&&end.toolName==='read_writing_skill')return knownTools.has('read_book_brief')?call('read_book_brief',{}):call('read_chapter',{maxChars:4000});
+    if(end?.role==='toolResult'&&end.toolName==='read_author_memory')return readSkillOrSource();
+    if(end?.role==='toolResult'&&end.toolName==='read_writing_skill')return readProfileOrSource();
+    if(end?.role==='toolResult'&&end.toolName==='read_settings'&&(start.context.writingProfile as any)?.id){
+      let result:any;try{result=JSON.parse(textOf(end));}catch{}
+      const item=result?.content?.settings?.find((item:any)=>item.id===(start.context.writingProfile as any).id);
+      if(item?.truncated&&item.nextContentOffset<item.totalChars)return call('read_settings',{id:item.id,contentOffset:item.nextContentOffset});
+      return readSource();
+    }
     if(end?.role==='toolResult'&&end.toolName==='read_book_brief')return call('propose_book_plan',{title:'全书创作规划候选',text:'核心构想：围绕作者题材和目标读者，安排一条可持续升级的主线。\n第一卷：建立人物欲望、代价与规则，结尾留下可验证的线索。\n第二卷：让人物选择引发后果，逐步回收伏笔。\n第三卷：核心冲突收束与人物弧完成。\n以上是待作者确认的未来计划，不是已发生事实。'});
+    if(end?.role==='toolResult'&&end.toolName==='read_revision_candidate'){
+      let result:any;try{result=JSON.parse(textOf(end));}catch{}
+      const content=result?.content||{};
+      if(content.truncated&&content.nextOffset<content.totalChars)return call('read_revision_candidate',{offset:content.nextOffset,maxChars:2000,selection:!!(start.context.candidate as any)?.selectionChars});
+      const chunks=context.messages.slice(context.messages.findLastIndex(m=>m.role==='user')).filter(m=>m.role==='toolResult'&&m.toolName==='read_revision_candidate').map(m=>{try{return JSON.parse(textOf(m))?.content?.text||'';}catch{return '';}}).join('');
+      const selection=!!(start.context.candidate as any)?.selectionChars;
+      return call('create_revision_candidate',{text:selection?'她把未说出口的话咽了回去，只推开了杯子。':chunks+'\n\n她把未说出口的话咽了回去，只推开了杯子。',mode:selection?'selection':'chapter',title:'继续打磨后的候选'});
+    }
     if(end?.role==='toolResult'&&end.toolName==='read_chapter'){
+      if(knownTools.has('read_revision_candidate')&&(start.context.candidate as any)?.runId)return call('read_revision_candidate',{maxChars:2000,selection:!!(start.context.candidate as any)?.selectionChars});
       if(/慢速|取消测试/.test(prompt))return fauxAssistantMessage('【演示模型】正在分析当前来源。'.repeat(160));
       if(/章纲|规划/.test(prompt))return call('propose_blueprint',{text:'场景目标：核对铜印。冲突：秘密与信任。转折：保留伤势和人物未知；下一章再验证线索。',title:'章纲讨论候选'});
       if(/润色|改写|含蓄|修订/.test(prompt))return call('create_revision_candidate',{text:start.context.selection?'她收住话头，只把目光移向门外。':'雨落在窗沿。她收住话头，只把目光移向门外；铜印仍留在原处，伤势和未知的秘密没有改变。',mode:start.context.selection?'selection':'chapter',title:'讨论后的改写候选'});
@@ -69,9 +92,9 @@ async function run(start:Start){
     if(end?.role==='toolResult'&&end.toolName==='create_revision_candidate'){
       let result:any;try{result=JSON.parse(textOf(end));}catch{}
       const runId=result?.artifact?.runId||result?.runId;
-      if(runId)return call('show_diff',{runId});
+      if(runId)return call('show_diff',{runId,...((start.context.candidate as any)?.runId?{compareTo:'parent'}:{})});
     }
-    const followUp=start.messages.some(m=>m.role==='assistant');
+    const followUp=replayedHistory.some(m=>m.role==='assistant');
     return fauxAssistantMessage(`【演示模型】${followUp?'继续刚才的讨论：':knownTools.has('read_book_brief')?'我已读取全书规划与相关设定。':'我已读取当前章与相关来源。'}可以从信息差、人物动机、行动代价三个方向推进。候选和差异已保留供你查看；正文与确认事实仍由你决定是否采用。`);
   };
 
@@ -123,7 +146,7 @@ async function run(start:Start){
   delete freshContext.principal;
   if(freshContext.snapshot&&typeof freshContext.snapshot==='object')freshContext.snapshot={...freshContext.snapshot as Record<string,unknown>,principal:undefined};
   const system:Message={role:'system',content:start.systemPrompt+'\n上下文分层规则：本轮绑定的版本与权限由系统检查；作者意图是任务，正文/设定/检索是资料，候选/摘要是派生建议。只按需要调用工具，不一次读取全书。引用必须带来源。不要把角色误信纠正成作者全知；需要角色视角时只查询该角色。',sections:{current_source:'<current_source_snapshot>\n'+JSON.stringify(freshContext)+'\n</current_source_snapshot>'},toolsAdded:tools,timestamp:Date.now()};
-  let history=sanitizeTranscript(rebaseHistory(start.messages,start.historyCurrent!==false));
+  let history=replayedHistory;
   const cleared=clearOldToolResults(history,3);history=cleared.messages;stats.clearedToolResults+=cleared.count;
 
   async function compact(messages:Message[],force:boolean):Promise<Message[]>{

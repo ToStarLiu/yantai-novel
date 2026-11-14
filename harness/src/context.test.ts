@@ -82,3 +82,46 @@ test('cleared writing-skill pages retain versioned paths and exact read ranges f
   assert.equal(cleared.count,1);for(const value of ['skill-1','"version":4','sha256hash','references/dialogue.md','"offset":1200','"nextOffset":2400'])assert.ok(text.includes(value),value);
   assert.ok(text.includes('应用前须'));assert.equal(text.includes('对白保留潜台词'),false);
 });
+
+
+test('private-memory boundary removes old user preferences as well as summaries, tools and answers without mutating the archive',()=>{
+  const oldPreference='OLD-PRIVATE-PREFERENCE: 我喜欢在每段结尾解释人物情绪。';
+  const history:Message[]=[
+    userMessage(oldPreference),
+    fauxAssistantMessage('OLD-ASSISTANT-PREFERENCE: 以后每段都解释情绪。'),
+    summaryMessage('OLD-SUMMARY-PREFERENCE: 默认解释人物情绪。'),
+    {role:'toolResult',toolCallId:'memory-old',toolName:'read_author_memory',content:[{type:'text',text:'OLD-TOOL-PREFERENCE'}],isError:false,timestamp:1},
+  ];
+  const archive=JSON.stringify(history);
+  for(const current of [true,false]){
+    const replay=rebaseHistory(history,current,false);
+    assert.deepEqual(replay,[]);
+    assert.equal(JSON.stringify(history),archive);
+  }
+  assert.ok(archive.includes(oldPreference));
+  assert.ok(JSON.stringify(rebaseHistory(history,false,true)).includes(oldPreference));
+});
+
+test('cleared author-memory pages retain private provenance and reread instructions without retaining preference prose',()=>{
+  const page:Message={role:'toolResult',toolCallId:'memory-page',toolName:'read_author_memory',content:[{type:'text',text:JSON.stringify({content:{id:'memory-1',scope:'author',kind:'voice',offset:200,nextOffset:600,text:'FORGOTTEN-PROSE'.repeat(100)}})}],isError:false,timestamp:1};
+  const messages:Message[]=[userMessage('旧请求'),page,userMessage('请求1'),userMessage('请求2'),userMessage('请求3')];
+  const cleared=clearOldToolResults(messages,3);
+  const text=textOf(cleared.messages[1]);
+  assert.equal(cleared.count,1);
+  for(const value of ['memory-1','"offset":200','"nextOffset":600','"scope":"author"','"kind":"voice"'])assert.ok(text.includes(value),value);
+  assert.ok(text.includes('不能从旧记录恢复已停用或忘记的偏好'));
+  assert.equal(text.includes('FORGOTTEN-PROSE'),false);
+  assert.ok(textOf(page).includes('FORGOTTEN-PROSE'));
+});
+
+
+test('candidate lineage and comparison base survive artifact projection and old-source clearing',()=>{
+ const result={content:{runId:'child',text:'候选'.repeat(4000)},artifact:{kind:'revision-candidate',runId:'child',parentCandidateRunId:'parent',comparisonRunId:'parent',comparisonBase:'parent',text:'完整'.repeat(8000)}};
+ const projection=projectToolResult(result) as any;
+ assert.equal(projection.artifact.parentCandidateRunId,'parent');assert.equal(projection.artifact.comparisonRunId,'parent');assert.equal(projection.artifact.comparisonBase,'parent');
+ assert.equal(JSON.stringify(projection).includes('完整'),false);
+ const history: Message[]=[userMessage('继续父候选'),fauxAssistantMessage('候选'),{role:'toolResult',toolCallId:'read-parent',toolName:'read_revision_candidate',isError:false,timestamp:1,content:[{type:'text',text:JSON.stringify({runId:'parent',hash:'parent-hash',parentCandidateRunId:'ancestor',offset:0,nextOffset:1000,text:'旧候选'.repeat(800)})}]}];
+ for(let i=0;i<3;i++)history.push(userMessage('近期要求'+i),fauxAssistantMessage('回答'+i));
+ const cleared=clearOldToolResults(history);
+ const text=textOf(cleared.messages[2]);assert.ok(text.includes('parent-hash'));assert.ok(text.includes('ancestor'));assert.ok(text.includes('重新分页读取'));assert.equal(text.includes('旧候选'),false);
+});

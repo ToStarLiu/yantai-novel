@@ -11,6 +11,11 @@ import {
 } from "lucide-react";
 import { api, id, type Run } from "../api";
 import {
+  TaskMemoryControl,
+  TaskMemoryUsage,
+  useTaskAuthorMemory,
+} from "../TaskAuthorMemory";
+import {
   StudioCard,
   StudioButton,
   StudioError,
@@ -71,6 +76,7 @@ export default function PlanningPanel({
   notify,
   refresh,
 }: PanelProps) {
+  const taskMemory = useTaskAuthorMemory(detail.project.id);
   const query = useQuery({
     queryKey: ["studio", detail.project.id],
     queryFn: () =>
@@ -338,6 +344,13 @@ export default function PlanningPanel({
             value={target}
             onChange={setTarget}
           />
+          <TaskMemoryControl
+            preference={taskMemory}
+            projectId={detail.project.id}
+            purpose="工作室规划"
+            taskType="planning"
+            disabled={working}
+          />
           <StudioButton
             disabled={working || !target}
             onClick={() =>
@@ -347,6 +360,7 @@ export default function PlanningPanel({
                 await api(`/chapters/${target}/runs`, "POST", {
                   intentId: id(),
                   taskType: "planning",
+                  ignoreMemory: taskMemory.ignoreMemory,
                   scope,
                   volumeId: scope === "volume" ? volumeID : "",
                   inputRevisionId: c?.currentRevisionId || "",
@@ -388,6 +402,12 @@ export default function PlanningPanel({
           </label>
           {plan && (
             <>
+              <TaskMemoryUsage run={plan} />
+              {plan.stale && (
+                <p className="warning-box">
+                  作品来源或作者记忆已变化，旧规划保留为历史，请重新生成。
+                </p>
+              )}
               <pre className="studio-result">{plan.output.text}</pre>
               <StudioButton
                 primary

@@ -179,3 +179,45 @@ Windows便携包0.4.0/schema21实际启动，UI导入原创指南，经包内Pi�
 2026-11-13，官方仓库[ToStarLiu/yantai-novel](https://github.com/ToStarLiu/yantai-novel)，采用GPL-3.0-only。首次云端回归发现fpdf对Linux字体绝对路径的处理问题，改为Go读取字体字节后注册，新增Unicode/含空格绝对路径、工作目录独立及缺失文件回归；Windows真实PG出版测试与vet通过。公开发行包重新构建且真实EXE导入Skill、Pi读取/规划采用、退出关闭PG和重启保留均通过，回执.local/desktop-github-final.json。
 
 本次公开ZIP包含项目LICENSE/NOTICE和上游运行组件通知，262847866字节、1787个文件CRC通过，SHA-256：`85b0185e5ba4aedc4dd4610f1b9dc8f8f00cdedff13d40c5cbf9f6c0169ee25b`。此公开包替代前文开发阶段同版本的本地ZIP，最新校验元数据随Releases附带release.json。GitHub全量CI执行结果以对应commit的Actions为准。
+
+
+## 作者长期记忆与候选反馈 — 2026-11-13（当前源码）
+
+本机工作台已更新到schema22。顶栏、工作台导航和快捷操作提供作者记忆入口；记录跨书或仅本书的创作偏好、文风、合作习惯、对话要点。自己的消息可主动记住，助手只提议pending并保留原话，明确确认后启用。管理支持编辑、置顶、暂停、拒绝、忘记、导入预览与去重导出；每轮展示实际加载的版本，可单轮关闭。改写候选的具体反馈按钮先填入输入框，作者确认发送。
+
+- 最终Go全量**230项顶层测试通过，0失败、0跳过**；workbench195.895秒。日志为.local/author-memory-final-tests.jsonl；vet、API和Worker构建通过。
+- Pi源码与独立bundle各**26项**通过，覆盖 memory→Skill→当前来源→候选→Diff；对话压缩保留具体偏好和来源指针。最大6条记忆、6个Skills与4000字来源的真实估算为**15044 / 16000 tokens**；普通来源读取仍为13992 / 14000专项界限。
+- 前端TypeScript、生产构建及5单测通过。实际Chrome共**33个不同用例分批通过**：完整33项中32项成功，跨书测试脚本的同页hash导航没有触发实际换书；改用页面“选择作品→继续写作”后，作者记忆4项专项全过（21.6秒）。已有29项包括保存/冲突、记忆证据、PWA、规划、供应商、协作/MCP、Skills和布局均通过。
+- 新浏览器专项覆盖手动文风与修改、记忆文件导出/导入去重、全局使用开关、390px无横向溢出、pending确认、真正跨书偏好与本书隔离、单轮关闭、对话原话保存、候选反馈预填不自动发送、忘记后旧候选禁用、409保留草稿和显式重载，以及停用/启用。
+- 浏览器发现并修复“台词”排除误伤“潜台词”导致缺少建议卡片；已将保守排除缩窄为明确引用语境并补真实Pi自动提议回归。GetRun/ListRuns对当前作者记忆版本补充stale判断，避免忘记后UI仍显示旧候选可采用；数据库采用事务继续返回409。
+- Go与HTTP测试覆盖账号隔离（包括管理员）、作品范围与来源原话校验、并发CAS、只选active、建议/使用开关、跨书锁顺序、改动/忘记后的工具/调用/候选边界、完整分页和上下文预算。共享Run只存owner/version/hash，作品导出不含私人偏好；关闭/忘记/忽略记忆后，历史用户消息也退出模型重放，避免通过旧对话恢复偏好。
+- 实际备份/恢复至独立novel_restore_author_memory_20261113，**49个业务表**计数和正文摘要与元数据匹配。非空夹具包含3条active/pending/disabled记忆及32个私有轮次；作者记忆、设置与审计三表逐行JSON聚合摘要一致。恢复任务队列隔离、会话清除，没有启动真实模型。回执及摘要在.local/backups/author-memory-verification和.local/author-memory-restore-digests.json。
+- OpenAPI为141路径、170 Schema、932内部引用，0悬空引用。未新增运行时依赖。
+
+主库升级前保留schema21完整备份。升级后实际Chrome登录、书房与作者记忆弹窗通过，无pageerror；原有1部示例、3章、8正文版本和5条确认事实保持一致，作者记忆初始为空，没有写入测试偏好。当前真实模型配置保留，本轮未新增外部收费模型请求。主服务8088已启动；临时8089已停止。记录.local/author-memory-main-smoke.json。
+
+截图为独立测试库真实浏览器渲染：[管理](screenshots/author-memory-desktop.png)、[手机](screenshots/author-memory-mobile.png)、[对话内使用与单轮关闭](screenshots/author-memory-conversation.png)。使用与私有边界见[作者记忆说明](../development/author-memory.md)。GitHub既有v0.4.0发行包未改动；本节描述当前源码及本机运行版本。文学效果与作者长期使用收益仍需实际作品评价。
+
+
+## 统一作者上下文、文风与连续改稿 — 2026-11-13（当前源码）
+
+本机服务已更新到schema23。作者记忆用于起草、修订、改写、规划、翻译和文学编辑等创作任务；一致性审稿、事实提取、来源/声音分析与场景交接不注入个人偏好。每次创作和批量制作可关闭记忆，任务详情可由创建者展开查看实际私人快照。自定义Agent仍需query-memory权限。
+
+作品规划新增“文风与写法”，统一展示本书style/pace/restrictions、作者私人偏好、样例与Skills。编辑用原有brief版本CAS保护，未保存修改可保留，书内切标签不卸载草稿，应用内离开或退出登录前可取消放弃。章节Copilot通过read_settings的book-writing-profile虚拟资料分页读取完整写法；人物视角不加载可能包含全知限制的资料。普通写作任务读取现有Studio资料。
+
+候选反馈明确绑定candidateRunId，可以只修改候选中的唯一选段，保存下一稿并保留父版。源Revision始终指向保存原稿；“与上一稿比较”只读，“查看Diff”仍以保存原稿逐段采用。普通单次rewrite的局部结果在绑定时还原为整章候选，保留未选段；前端父版比较也使用同样的完整投影。普通任务结果提供“和创作伙伴继续打磨”入口。保存请求409会保持尚未采用，不误报成功。
+
+实际验证：
+
+- 最终Go全量 **251项顶层测试通过，0失败、0跳过**，workbench316.549秒；日志.local/writing-flow-final-tests.jsonl。vet、API和Worker构建通过。CI为扩大的真实PG测试保留420秒包超时，未跳过集成测试。
+- Pi源码与独立bundle各 **29/29** 通过；新增实际Go/Pi分页读完整文风、候选引用与父版Diff、普通局部候选连续改稿。最大6条作者记忆+6项Skill+本书写法目录+绑定候选+4000字工具页的实际估算 **15759/16000 tokens**，普通来源原有专项13992/14000保持通过。
+- TypeScript、生产构建和 **9项前端单测**通过。完整 **39项Chrome回归全部通过（3.3分钟）**，含之前全部33项与新增6项。补齐本书写法读取和普通rewrite全文投影后，受影响的 **12项**再次全过（1.3分钟），其中新增单次选段候选到对话续改1项，因此共 **40个不同浏览器用例分批通过**。最后仅当实际改动才触发文风离开提示的调整通过主服务无改动编辑/取消冒烟。
+- 新浏览器专项覆盖任务偏好明细、逐次关闭、事实任务排除、自定义Agent权限、批量创建者与多候选关闭、文风样例/版本冲突/离开保护/390px、候选引用和选段、上一稿比较只读、原稿Diff采用、采用失败状态，以及普通局部任务与连续改稿的完整联通。
+- 私人增补请求保存到独立wb_run_author_contexts；批量及多候选保存原创建者身份与记忆版本。真实Provider测试收到本人的active偏好，未收到其他账号和pending条目；共享Run/attempt请求、Trace、指标、作品包均未夹带私人输入。个性化结果禁用共享缓存，全部增加UTF-8字节计入提交和派发预算。
+- 真实普通账号停用、成员撤销/只读、记忆变更/忘记的派发及完成边界通过；批量不会借用Worker/admin记忆，版本变化后不创建后续子任务。原作者私有快照接口不为其他作者或管理员提供旁路。
+- 独立验收库完整备份实际恢复到novel_restore_writing_flow_20261113：**52个业务表**计数/正文摘要与元数据相符，新增私有任务52条、制作4条、多候选4条。三个私有上下文表（含完整增补请求）的逐行聚合摘要一致，恢复队列已隔离，会话清除，没有启动模型。回执在.local/backups/writing-flow-verification及.local/writing-flow-restore-digests.json。
+- OpenAPI142路径、172 Schema与新增私有快照/ignoreMemory/候选引用字段均可解析，内部引用核验无悬空。未新增运行依赖。
+
+主库迁移前保留schema22完整备份。升级后真实Chrome登录、唯一示例作品、作者记忆与文风页、无修改编辑/取消通过，无pageerror；真实模型配置gpt-6.1-sol保留，本轮没有新增收费模型调用。原有1部作品、3章、8个正文版本、5个事实及正文哈希摘要与升级前完全匹配；主库未写入测试偏好或任务。8088服务正在运行，测试8089已停止。GitHub既有v0.4.0发行包未改动。
+
+截图：[文风页](screenshots/writing-profile-desktop.png)、[手机文风](screenshots/writing-profile-mobile.png)、[连续改稿](screenshots/candidate-iteration.png)、[任务记忆手机](screenshots/task-memory-mobile.png)、[制作/多候选记忆](screenshots/task-memory-production.png)。使用流程见[持续写作](../development/writing-flow.md)。私人输入隔离不保证模型绝不复述；生成产物仍按作品权限共享。文学质量仍需作者用自己的章节评估。

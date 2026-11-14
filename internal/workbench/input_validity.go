@@ -40,6 +40,9 @@ func snapshotCurrent(ctx context.Context, db snapshotDB, run Run) (bool, error) 
 	}
 	// Style preferences cannot invalidate evidence derived from finalized prose.
 	if run.Type != "memory-extraction" {
+		if valid, err := authorMemoryBaselineCurrent(ctx, db, run.Input.AuthorMemory); err != nil || !valid {
+			return valid, err
+		}
 		if valid, err := writingSkillSnapshotCurrent(ctx, db, projectID, run.Input.WritingSkills); err != nil || !valid {
 			return valid, err
 		}

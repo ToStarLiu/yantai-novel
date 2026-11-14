@@ -32,14 +32,15 @@ type WorkflowDefinition struct {
 	Steps   []WorkflowStep `json:"steps"`
 }
 type ProductionRequest struct {
-	WorkflowID  string   `json:"workflowId"`
-	ChapterIDs  []string `json:"chapterIds"`
-	StartOrder  int      `json:"startOrder"`
-	EndOrder    int      `json:"endOrder"`
-	MaxChapters int      `json:"maxChapters"`
-	MaxCost     *float64 `json:"maxCost"`
-	Currency    string   `json:"currency"`
-	ManualGates bool     `json:"manualGates"`
+	IgnoreMemory bool     `json:"ignoreMemory,omitempty"`
+	WorkflowID   string   `json:"workflowId"`
+	ChapterIDs   []string `json:"chapterIds"`
+	StartOrder   int      `json:"startOrder"`
+	EndOrder     int      `json:"endOrder"`
+	MaxChapters  int      `json:"maxChapters"`
+	MaxCost      *float64 `json:"maxCost"`
+	Currency     string   `json:"currency"`
+	ManualGates  bool     `json:"manualGates"`
 }
 type ProductionStep struct {
 	ID        string `json:"id"`
@@ -52,17 +53,19 @@ type ProductionStep struct {
 	Error     string `json:"error"`
 }
 type ProductionRun struct {
-	ID          string             `json:"id"`
-	ProjectID   string             `json:"projectId"`
-	Workflow    WorkflowDefinition `json:"workflow"`
-	ChapterIDs  []string           `json:"chapterIds"`
-	MaxCost     *float64           `json:"maxCost"`
-	Currency    string             `json:"currency"`
-	ManualGates bool               `json:"manualGates"`
-	Status      string             `json:"status"`
-	Error       string             `json:"error"`
-	CreatedAt   time.Time          `json:"createdAt"`
-	Steps       []ProductionStep   `json:"steps"`
+	OwnerID      string             `json:"ownerId,omitempty"`
+	IgnoreMemory bool               `json:"ignoreMemory,omitempty"`
+	ID           string             `json:"id"`
+	ProjectID    string             `json:"projectId"`
+	Workflow     WorkflowDefinition `json:"workflow"`
+	ChapterIDs   []string           `json:"chapterIds"`
+	MaxCost      *float64           `json:"maxCost"`
+	Currency     string             `json:"currency"`
+	ManualGates  bool               `json:"manualGates"`
+	Status       string             `json:"status"`
+	Error        string             `json:"error"`
+	CreatedAt    time.Time          `json:"createdAt"`
+	Steps        []ProductionStep   `json:"steps"`
 }
 
 func advancedTask(kind string) bool {
@@ -242,6 +245,10 @@ func (s *Service) StartProduction(ctx context.Context, projectID string, in Prod
 		}
 		seen[id] = true
 	}
+	batch, err := s.prepareAuthorBatch(ctx, projectID, in.IgnoreMemory)
+	if err != nil {
+		return ProductionRun{}, err
+	}
 	tx, err := s.DB.Begin(ctx)
 	if err != nil {
 		return ProductionRun{}, err
@@ -251,6 +258,18 @@ func (s *Service) StartProduction(ctx context.Context, projectID string, in Prod
 	chapterJSON, _ := json.Marshal(chapters)
 	if _, err = tx.Exec(ctx, "INSERT INTO wb_productions(id,project_id,workflow_snapshot,chapter_ids,max_cost,currency,manual_gates,status) VALUES($1,$2,$3,$4,$5,$6,$7,'Running')", id, projectID, raw, chapterJSON, in.MaxCost, in.Currency, in.ManualGates); err != nil {
 		return ProductionRun{}, err
+	}
+	if batch != nil {
+		valid, e := authorMemoryBaselineCurrent(ctx, tx, batch.Baseline)
+		if e != nil {
+			return ProductionRun{}, e
+		}
+		if !valid {
+			return ProductionRun{}, &Conflict{Message: "作者记忆已变化，请重新启动"}
+		}
+		if e = saveAuthorBatchTx(ctx, tx, "production", id, batch); e != nil {
+			return ProductionRun{}, e
+		}
 	}
 	order := 0
 	for _, chapter := range chapters {
@@ -279,6 +298,13 @@ func (s *Service) GetProduction(ctx context.Context, id string) (ProductionRun, 
 	if err = json.Unmarshal(chapters, &out.ChapterIDs); err != nil {
 		return out, err
 	}
+	var batchOwner string
+	var batchIgnore bool
+	batchErr := s.DB.QueryRow(ctx, "SELECT owner_id,ignore_memory FROM wb_production_author_contexts WHERE production_id=$1", id).Scan(&batchOwner, &batchIgnore)
+	if batchErr != nil && batchErr != pgx.ErrNoRows {
+		return out, batchErr
+	}
+	out.OwnerID, out.IgnoreMemory = batchOwner, batchIgnore
 	out.Steps = []ProductionStep{}
 	rows, err := s.DB.Query(ctx, "SELECT id,chapter_id,step_id,sort_order,status,task_run_id,approved,error FROM wb_production_steps WHERE production_id=$1 ORDER BY sort_order", id)
 	if err != nil {
@@ -327,6 +353,16 @@ func (s *Service) ProductionAction(ctx context.Context, id, action, stepID strin
 	p, err := s.GetProduction(ctx, id)
 	if err != nil {
 		return p, err
+	}
+	if p.OwnerID != "" {
+		if actor, ok := PrincipalFromContext(ctx); ok && actor.ID != p.OwnerID {
+			return p, ErrForbidden
+		}
+		if action == "resume" || action == "approve" {
+			if _, _, checkErr := s.authorBatchExecutionContext(ctx, "production", id, p.ProjectID); checkErr != nil {
+				return p, checkErr
+			}
+		}
 	}
 	switch action {
 	case "pause":
@@ -447,6 +483,11 @@ func (s *Service) advanceProduction(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
+	executionCtx, ignoreMemory, ownerErr := s.authorBatchExecutionContext(ctx, "production", id, p.ProjectID)
+	if ownerErr != nil {
+		_, saveErr := s.DB.Exec(ctx, "UPDATE wb_productions SET status='WaitingForUser',error=$2 WHERE id=$1", id, "作者上下文或作品权限已变化，请重新核对批量任务")
+		return saveErr
+	}
 	defs := map[string]WorkflowStep{}
 	for _, step := range p.Workflow.Steps {
 		defs[step.ID] = step
@@ -548,7 +589,7 @@ func (s *Service) advanceProduction(ctx context.Context, id string) error {
 		if err != pgx.ErrNoRows {
 			return err
 		}
-		request := RunRequest{IntentID: intent, TaskType: definition.Type, PromptTemplateID: definition.PromptTemplateID, AgentID: definition.AgentID, MCPCalls: definition.MCPCalls, Instructions: "工作流步骤：" + p.Workflow.Name + " / " + definition.ID}
+		request := RunRequest{IgnoreMemory: ignoreMemory, IntentID: intent, TaskType: definition.Type, PromptTemplateID: definition.PromptTemplateID, AgentID: definition.AgentID, MCPCalls: definition.MCPCalls, Instructions: "工作流步骤：" + p.Workflow.Name + " / " + definition.ID}
 		if definition.PromptTemplateID != "" {
 			template, e := s.ResolvePrompt(ctx, definition.Type, definition.PromptTemplateID)
 			if e != nil {
@@ -579,7 +620,7 @@ func (s *Service) advanceProduction(ctx context.Context, id string) error {
 				}
 			}
 		}
-		run, e := s.SubmitRun(ctx, step.ChapterID, request)
+		run, e := s.SubmitRun(executionCtx, step.ChapterID, request)
 		if e != nil {
 			_, err = s.DB.Exec(ctx, "UPDATE wb_productions SET status='WaitingForUser',error=$2 WHERE id=$1", id, e.Error())
 			return err

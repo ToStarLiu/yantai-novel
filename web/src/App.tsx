@@ -38,6 +38,15 @@ import {
   MoreHorizontal,
   BookMarked,
   Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Maximize2,
+  Minimize2,
+  Users,
+  Waypoints,
+  NotebookPen,
+  GripVertical,
+  Brain,
 } from "lucide-react";
 import {
   api,
@@ -58,7 +67,17 @@ import {
 import { useDraft } from "./useDraft";
 import { BookHome, LibraryHome, NewBookWizard } from "./AuthorHome";
 import ProviderSettings from "./ProviderSettings";
+import WorkspaceCommandPalette, {
+  type WorkspaceCommand,
+} from "./WorkspaceCommandPalette";
 import type { StudioTab } from "./studioApi";
+import {
+  AUTHOR_MEMORY_OPEN,
+  type OpenAuthorMemoryRequest,
+} from "./authorMemoryEvents";
+import { confirmWorkspaceNavigation } from "./navigationGuard";
+import "./workspaceLayout.css";
+const LazyAuthorMemories = lazy(() => import("./AuthorMemories"));
 const LazyWritingSkills = lazy(() => import("./WritingSkills"));
 const LazyEditor = lazy(() => import("./Editor"));
 const LazyAssistant = lazy(() => import("./Assistant"));
@@ -116,6 +135,100 @@ function Button({
 }
 export { Button };
 
+function storedLayoutNumber(key: string, fallback: number) {
+  try {
+    const raw = localStorage.getItem(key);
+    const value = raw === null ? NaN : Number(raw);
+    return Number.isFinite(value) ? value : fallback;
+  } catch {
+    return fallback;
+  }
+}
+const boundWidth = (value: number, min: number, max: number) =>
+  Math.round(Math.min(Math.max(value, min), Math.max(min, max)));
+
+function WorkspaceDivider({
+  label,
+  value,
+  min,
+  max,
+  reverse = false,
+  onChange,
+  className = "",
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  reverse?: boolean;
+  onChange: (value: number) => void;
+  className?: string;
+}) {
+  const drag = useRef<{ x: number; value: number } | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const direction = reverse ? -1 : 1;
+  return (
+    <div
+      role="separator"
+      tabIndex={0}
+      aria-label={label}
+      aria-orientation="vertical"
+      aria-valuemin={min}
+      aria-valuemax={max}
+      aria-valuenow={value}
+      aria-valuetext={value + " 像素"}
+      title={label + "：拖动或使用左右方向键"}
+      className={
+        "workspace-divider " + className + (dragging ? " dragging" : "")
+      }
+      onPointerDown={(e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        drag.current = { x: e.clientX, value };
+        e.currentTarget.setPointerCapture(e.pointerId);
+        setDragging(true);
+      }}
+      onPointerMove={(e) => {
+        if (drag.current)
+          onChange(
+            boundWidth(
+              drag.current.value + (e.clientX - drag.current.x) * direction,
+              min,
+              max,
+            ),
+          );
+      }}
+      onPointerUp={(e) => {
+        drag.current = null;
+        setDragging(false);
+        if (e.currentTarget.hasPointerCapture(e.pointerId))
+          e.currentTarget.releasePointerCapture(e.pointerId);
+      }}
+      onPointerCancel={() => {
+        drag.current = null;
+        setDragging(false);
+      }}
+      onLostPointerCapture={() => {
+        drag.current = null;
+        setDragging(false);
+      }}
+      onKeyDown={(e) => {
+        let next: number | undefined;
+        if (e.key === "ArrowLeft") next = value - 16 * direction;
+        if (e.key === "ArrowRight") next = value + 16 * direction;
+        if (e.key === "Home") next = min;
+        if (e.key === "End") next = max;
+        if (next !== undefined) {
+          e.preventDefault();
+          onChange(boundWidth(next, min, max));
+        }
+      }}
+    >
+      <GripVertical size={11} />
+    </div>
+  );
+}
+
 export default function App() {
   const qc = useQueryClient();
   const [projectId, setProjectId] = useState(
@@ -127,9 +240,83 @@ export default function App() {
   const [modal, setModal] = useState<ModalState>(null);
   const [notice, setNotice] = useState("");
   const [assistantOpen, setAssistantOpen] = useState(
-    () => window.innerWidth > 760,
+    () => window.innerWidth >= 1160,
   );
   const [mobileNav, setMobileNav] = useState(false);
+  const [directoryOpen, setDirectoryOpen] = useState(true);
+  const [chapterSearch, setChapterSearch] = useState("");
+  const [collapsedVolumes, setCollapsedVolumes] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [focusMode, setFocusMode] = useState(false);
+  const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
+  const [preferredDirectoryWidth, setPreferredDirectoryWidth] = useState(() =>
+    boundWidth(storedLayoutNumber("yantai-directory-width", 232), 190, 330),
+  );
+  const [preferredAssistantWidth, setPreferredAssistantWidth] = useState(() =>
+    boundWidth(storedLayoutNumber("yantai-assistant-width", 360), 300, 540),
+  );
+  const desktopAssistant = viewportWidth >= 1160;
+  const directoryMax = Math.max(
+    190,
+    Math.min(
+      330,
+      viewportWidth -
+        64 -
+        460 -
+        10 -
+        (assistantOpen && desktopAssistant ? preferredAssistantWidth : 0),
+    ),
+  );
+  const directoryWidth = boundWidth(preferredDirectoryWidth, 190, directoryMax);
+  const assistantMax = Math.max(
+    300,
+    Math.min(
+      540,
+      viewportWidth - 64 - (directoryOpen ? directoryWidth + 5 : 0) - 460 - 5,
+    ),
+  );
+  const assistantWidth = boundWidth(preferredAssistantWidth, 300, assistantMax);
+  useEffect(() => {
+    const resize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "yantai-directory-width",
+        String(preferredDirectoryWidth),
+      );
+    } catch {
+      /* Layout works without storage. */
+    }
+  }, [preferredDirectoryWidth]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "yantai-assistant-width",
+        String(preferredAssistantWidth),
+      );
+    } catch {
+      /* Layout works without storage. */
+    }
+  }, [preferredAssistantWidth]);
+  useEffect(() => {
+    setChapterSearch("");
+    setCollapsedVolumes(new Set());
+  }, [projectId]);
+  useEffect(() => {
+    if (!focusMode && !mobileNav) return;
+    const escape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setFocusMode(false);
+        setMobileNav(false);
+      }
+    };
+    window.addEventListener("keydown", escape);
+    return () => window.removeEventListener("keydown", escape);
+  }, [focusMode, mobileNav]);
   const [nonce, setNonce] = useState(0);
   const [studioOpen, setStudioOpen] = useState(false);
   const [studioTab, setStudioTab] = useState<StudioTab>("canvas");
@@ -142,7 +329,21 @@ export default function App() {
         : "library",
   );
   const [providerOpen, setProviderOpen] = useState(false);
+  const [styleRequest, setStyleRequest] = useState(0);
   const [skillsOpen, setSkillsOpen] = useState(false);
+  const [authorMemoryOpen, setAuthorMemoryOpen] =
+    useState<OpenAuthorMemoryRequest | null>(null);
+  useEffect(() => {
+    const open = (event: Event) => {
+      setAuthorMemoryOpen(
+        (event as CustomEvent<OpenAuthorMemoryRequest>).detail || {},
+      );
+      setCommandsOpen(false);
+    };
+    window.addEventListener(AUTHOR_MEMORY_OPEN, open);
+    return () => window.removeEventListener(AUTHOR_MEMORY_OPEN, open);
+  }, []);
+  const [commandsOpen, setCommandsOpen] = useState(false);
   const draftFlush = useRef<(() => Promise<string>) | null>(null);
   const registerFlush = useCallback((flush: (() => Promise<string>) | null) => {
     draftFlush.current = flush;
@@ -269,11 +470,14 @@ export default function App() {
     cid?: string,
   ) => {
     try {
+      if (!confirmWorkspaceNavigation()) return;
       await draftFlush.current?.();
+      setStyleRequest(0);
       if (pid !== projectId) setProjectId(pid);
       if (cid) setChapterId(cid);
       setSurface(next);
       setMobileNav(false);
+      if (next !== "write") setFocusMode(false);
       window.history.replaceState(
         null,
         "",
@@ -298,6 +502,7 @@ export default function App() {
     const title = prompt("新章节标题", "未命名章节");
     if (title === null) return;
     void act(async () => {
+      await draftFlush.current?.();
       const c = await api<Chapter>(`/projects/${projectId}/chapters`, "POST", {
         title: title || "未命名章节",
         volume: "第一卷",
@@ -323,6 +528,52 @@ export default function App() {
       "章节顺序已更新；相关记忆需复核",
     );
   };
+  const openWorkspaceStudio = (tab: StudioTab) =>
+    void act(async () => {
+      await draftFlush.current?.();
+      await qc.fetchQuery({
+        queryKey: ["project", projectId],
+        queryFn: () => api<Detail>("/projects/" + projectId),
+        staleTime: 0,
+      });
+      setStudioTab(tab);
+      setStudioOpen(true);
+      setMobileNav(false);
+    });
+  const toggleDirectory = () => {
+    if (viewportWidth <= 760) {
+      setFocusMode(false);
+      setMobileNav((v) => !v);
+    } else setDirectoryOpen((v) => !v);
+  };
+  useEffect(() => {
+    if (surface !== "write" || !session.data?.authenticated) return;
+    const shortcuts = (event: KeyboardEvent) => {
+      if (
+        event.isComposing ||
+        event.repeat ||
+        !(event.ctrlKey || event.metaKey)
+      )
+        return;
+      if (document.querySelector('[role="dialog"]') && !commandsOpen) return;
+      if (event.key.toLowerCase() === "k" && !event.shiftKey) {
+        event.preventDefault();
+        setCommandsOpen(true);
+      } else if (event.key.toLowerCase() === "s" && !event.shiftKey) {
+        event.preventDefault();
+        void draftFlush
+          .current?.()
+          .then(() => notify("正文已保存"))
+          .catch((e) => notify(message(e)));
+      } else if (event.key.toLowerCase() === "f" && event.shiftKey) {
+        event.preventDefault();
+        setFocusMode((value) => !value);
+        setMobileNav(false);
+      }
+    };
+    window.addEventListener("keydown", shortcuts);
+    return () => window.removeEventListener("keydown", shortcuts);
+  }, [surface, session.data?.authenticated, commandsOpen, notify]);
   if (session.isPending)
     return (
       <div className="app-loading">
@@ -343,12 +594,170 @@ export default function App() {
     detail.data?.chapters
       .filter((c) => !c.deleted)
       .sort((a, b) => a.order - b.order) || [];
+  const commandStudio = async (tab: StudioTab) => {
+    await draftFlush.current?.();
+    await qc.fetchQuery({
+      queryKey: ["project", projectId],
+      queryFn: () => api<Detail>("/projects/" + projectId),
+      staleTime: 0,
+    });
+    setStudioTab(tab);
+    setStudioOpen(true);
+    setMobileNav(false);
+  };
+  const commands: WorkspaceCommand[] = [
+    {
+      id: "save",
+      label: "保存当前正文",
+      description: "先完成保存，再继续创作",
+      group: "写作",
+      shortcut: "Ctrl S",
+      onSelect: async () => {
+        await draftFlush.current?.();
+        notify("正文已保存");
+      },
+    },
+    {
+      id: "focus",
+      label: focusMode ? "退出专注写作" : "进入专注写作",
+      description: "收起目录与助手，保留当前稿件",
+      group: "写作",
+      shortcut: "Ctrl Shift F",
+      onSelect: () => {
+        setFocusMode(!focusMode);
+        setMobileNav(false);
+      },
+    },
+    {
+      id: "assistant",
+      label: "打开创作伙伴",
+      description: "讨论选段、章纲和修改候选",
+      group: "写作",
+      onSelect: () => {
+        setFocusMode(false);
+        setAssistantOpen(true);
+      },
+    },
+    {
+      id: "directory",
+      label: "切换章节目录",
+      description: "显示或收起目录",
+      group: "写作",
+      onSelect: toggleDirectory,
+    },
+    {
+      id: "history",
+      label: "查看正文历史",
+      description: "比较和恢复此前保存的版本",
+      group: "写作",
+      onSelect: async () => {
+        await draftFlush.current?.();
+        setModal({ kind: "history" });
+      },
+    },
+    {
+      id: "book",
+      label: "打开全书规划",
+      description: "回到当前作品的规划与设定",
+      group: "作品",
+      onSelect: async () => {
+        await draftFlush.current?.();
+        await navigate("book");
+      },
+    },
+    {
+      id: "library",
+      label: "返回我的书房",
+      description: "查看全部作品",
+      group: "作品",
+      onSelect: async () => {
+        await draftFlush.current?.();
+        await navigate("library");
+      },
+    },
+    {
+      id: "characters",
+      label: "人物与世界",
+      description: "人物弧、关系和世界设定",
+      group: "作品",
+      onSelect: () => commandStudio("characters"),
+    },
+    {
+      id: "canvas",
+      label: "打开故事画布",
+      description: "安排故事节点与因果",
+      group: "作品",
+      onSelect: () => commandStudio("canvas"),
+    },
+    {
+      id: "writing-profile",
+      label: "文风与写法",
+      description: "查看本书写法、个人偏好、文字样例与 Skills",
+      group: "作者",
+      onSelect: async () => {
+        await navigate("book");
+        setStyleRequest(Date.now());
+      },
+    },
+    {
+      id: "author-memory",
+      label: "管理作者记忆",
+      description: "跨作品的偏好、文风和合作习惯",
+      group: "作者",
+      onSelect: () => setAuthorMemoryOpen({ projectId }),
+    },
+    {
+      id: "skills",
+      label: "管理写作 Skills",
+      description: "调整本书写法与适用任务",
+      group: "作品",
+      onSelect: () => setSkillsOpen(true),
+    },
+    {
+      id: "publish",
+      label: "出版与导出",
+      description: "选择稿件范围和导出格式",
+      group: "作品",
+      onSelect: () => commandStudio("publishing"),
+    },
+    {
+      id: "export-package",
+      label: "导出完整作品包",
+      description: "保存全部正文版本、设定与写作指南为JSON包",
+      group: "作品",
+      onSelect: async () => {
+        await draftFlush.current?.();
+        window.location.href = `/api/projects/${projectId}/export`;
+      },
+    },
+    ...chapters.map((c) => ({
+      id: "chapter-" + c.id,
+      label: c.title,
+      description: c.volume || "正文",
+      group: "章节",
+      onSelect: async () => {
+        await draftFlush.current?.();
+        await navigate("write", projectId, c.id);
+      },
+    })),
+  ];
   return (
     <div
       className={
         "app " +
-        (surface !== "write" ? "author-home-app " : "") +
-        (assistantOpen ? "" : "assistant-hidden")
+        (surface !== "write" ? "author-home-app " : "workspace-app ") +
+        (assistantOpen ? "" : "assistant-hidden ") +
+        (!directoryOpen ? "directory-collapsed " : "") +
+        (focusMode ? "focus-mode " : "") +
+        (!desktopAssistant && assistantOpen ? "assistant-overlay " : "")
+      }
+      style={
+        surface === "write"
+          ? ({
+              "--directory-width": directoryWidth + "px",
+              "--assistant-width": assistantWidth + "px",
+            } as React.CSSProperties)
+          : undefined
       }
     >
       <header className="topbar">
@@ -356,7 +765,8 @@ export default function App() {
           <button
             className="icon-button mobile-only"
             aria-label="打开章节导航"
-            onClick={() => setMobileNav(!mobileNav)}
+            aria-expanded={mobileNav}
+            onClick={toggleDirectory}
           >
             <Menu size={20} />
           </button>
@@ -379,9 +789,49 @@ export default function App() {
           <span className="brand-caption">小说创作工作台</span>
         </div>
         <div className="topbar-center">
-          <span className="tiny-dot" /> 自己的故事，自己的节奏
+          {surface === "write" ? (
+            <>
+              <BookOpen size={13} />
+              <span className="workspace-book-title">
+                {detail.data?.project.title || "写作工作台"}
+              </span>
+              <ChevronRight size={12} />
+              <span>正文</span>
+            </>
+          ) : (
+            <>
+              <span className="tiny-dot" /> 自己的故事，自己的节奏
+            </>
+          )}
         </div>
         <div className="top-actions">
+          {surface === "write" && (
+            <button
+              className="button workspace-command-open"
+              aria-label="快捷操作"
+              onClick={() => setCommandsOpen(true)}
+            >
+              <Search size={14} />
+              <span>快速查找</span>
+              <kbd>Ctrl K</kbd>
+            </button>
+          )}
+          {surface === "write" && (
+            <button
+              className={
+                "button workspace-focus-toggle " + (focusMode ? "active" : "")
+              }
+              aria-label={focusMode ? "退出专注模式" : "专注写作"}
+              aria-pressed={focusMode}
+              onClick={() => {
+                setFocusMode((v) => !v);
+                setMobileNav(false);
+              }}
+            >
+              {focusMode ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+              <span>{focusMode ? "退出专注" : "专注"}</span>
+            </button>
+          )}
           {surface !== "library" && (
             <button
               className="button author-home-nav"
@@ -406,6 +856,19 @@ export default function App() {
               <Leaf size={14} /> 写作 Skills
             </button>
           )}
+          <button
+            className="button author-memory-open"
+            title="作者记忆：偏好、文风与合作习惯"
+            aria-label="作者记忆"
+            onClick={() =>
+              setAuthorMemoryOpen({
+                projectId: surface === "library" ? undefined : projectId,
+              })
+            }
+          >
+            <Brain size={15} />
+            <span>作者记忆</span>
+          </button>
           {session.data.user?.admin && (
             <button
               className="button provider-open"
@@ -471,9 +934,12 @@ export default function App() {
               title="导出完整作品"
               aria-label="导出完整作品"
               disabled={!projectId}
-              onClick={() => {
-                window.location.href = `/api/projects/${projectId}/export`;
-              }}
+              onClick={() =>
+                void act(async () => {
+                  await draftFlush.current?.();
+                  window.location.href = `/api/projects/${projectId}/export`;
+                })
+              }
             >
               <Download size={18} />
             </button>
@@ -485,8 +951,10 @@ export default function App() {
             aria-label="退出登录"
             onClick={() =>
               void act(async () => {
+                if (!confirmWorkspaceNavigation()) return;
                 await draftFlush.current?.();
                 await api("/session", "DELETE");
+                setAuthorMemoryOpen(null);
                 qc.clear();
                 qc.setQueryData(["session"], {
                   authenticated: false,
@@ -503,133 +971,360 @@ export default function App() {
         </div>
       </header>
       {surface === "write" && (
-        <aside className={"sidebar " + (mobileNav ? "mobile-visible" : "")}>
-          <div className="library-label">
-            <Library size={15} /> 我的书房
-            <button
-              className="icon-button"
-              title="新建作品"
-              aria-label="新建作品"
-              onClick={() => setModal({ kind: "project" })}
-            >
-              <Plus size={17} />
-            </button>
-          </div>
-          <div className="project-switch">
-            <BookOpen size={19} />
-            <select
-              aria-label="选择作品"
-              value={projectId}
-              onChange={(e) => {
-                setProjectId(e.target.value);
-                setSurface("book");
-                setMobileNav(false);
-              }}
-            >
-              <option value="" disabled>
-                选择一部作品
-              </option>
-              {projects.data?.map((p) => (
-                <option value={p.id} key={p.id}>
-                  {p.title}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={14} />
-          </div>
-          {detail.data && (
-            <div className="book-meta">
-              <span>{detail.data.project.genre || "自由创作"}</span>
-              <span>{chapters.length} 章</span>
+        <>
+          <nav className="workspace-rail" aria-label="创作导航">
+            <div className="workspace-rail-main">
+              <button
+                aria-label="书房"
+                title="返回书房"
+                onClick={() => void navigate("library")}
+              >
+                <Library size={19} />
+                <span>书房</span>
+              </button>
+              <button
+                aria-label="作品规划"
+                title="全书规划"
+                onClick={() => void navigate("book")}
+              >
+                <BookMarked size={19} />
+                <span>规划</span>
+              </button>
+              <button
+                className="active"
+                aria-label={directoryOpen ? "收起章节目录" : "展开章节目录"}
+                aria-expanded={directoryOpen}
+                onClick={toggleDirectory}
+              >
+                {directoryOpen ? (
+                  <PanelLeftClose size={19} />
+                ) : (
+                  <PanelLeftOpen size={19} />
+                )}
+                <span>正文</span>
+              </button>
+              <span className="rail-divider" />
+              <button
+                aria-label="人物与世界"
+                title="人物、世界与规则"
+                disabled={!detail.data}
+                onClick={() => openWorkspaceStudio("characters")}
+              >
+                <Users size={19} />
+                <span>人物</span>
+              </button>
+              <button
+                aria-label="故事画布"
+                title="故事画布"
+                disabled={!detail.data}
+                onClick={() => openWorkspaceStudio("canvas")}
+              >
+                <Waypoints size={19} />
+                <span>画布</span>
+              </button>
+              <button
+                aria-label="作品资料库"
+                title="作品资料与来源 Wiki"
+                disabled={!detail.data}
+                onClick={() => openWorkspaceStudio("wiki")}
+              >
+                <NotebookPen size={19} />
+                <span>资料</span>
+              </button>
+              <button
+                aria-label="写作 Skills"
+                title="本书写作 Skills"
+                disabled={!projectId}
+                onClick={() => setSkillsOpen(true)}
+              >
+                <Leaf size={19} />
+                <span>Skills</span>
+              </button>
+              <button
+                aria-label="文风与写法"
+                title="本书写法与作者声音"
+                onClick={() =>
+                  void navigate("book").then(() => setStyleRequest(Date.now()))
+                }
+              >
+                <Feather size={19} />
+                <span>文风</span>
+              </button>
+              <button
+                aria-label="打开作者记忆"
+                title="我的偏好、文风与合作习惯"
+                onClick={() => setAuthorMemoryOpen({ projectId })}
+              >
+                <Brain size={19} />
+                <span>记忆</span>
+              </button>
             </div>
-          )}
-          <div className="sidebar-section">
-            <span>正文目录</span>
+            <div className="workspace-rail-bottom">
+              <button
+                aria-label="出版与导出"
+                title="出版与导出"
+                disabled={!detail.data}
+                onClick={() => openWorkspaceStudio("publishing")}
+              >
+                <Download size={18} />
+                <span>导出</span>
+              </button>
+              <button
+                aria-label="作品设置"
+                title="作品设置"
+                disabled={!detail.data}
+                onClick={() => setModal({ kind: "settings" })}
+              >
+                <Settings size={18} />
+                <span>设置</span>
+              </button>
+            </div>
+          </nav>
+          {mobileNav && (
             <button
-              className="icon-button"
-              title="新建章节"
-              aria-label="新建章节"
+              className="workspace-nav-scrim"
+              aria-label="关闭章节导航"
+              onClick={() => setMobileNav(false)}
+            />
+          )}
+          <aside
+            aria-label="章节目录"
+            aria-hidden={viewportWidth <= 760 && !mobileNav}
+            inert={viewportWidth <= 760 && !mobileNav}
+            className={
+              "sidebar workspace-directory " +
+              (mobileNav ? "mobile-visible" : "")
+            }
+          >
+            <div className="directory-heading">
+              <span>
+                <BookOpen size={15} /> 正文目录 <small>{chapters.length}</small>
+              </span>
+              <div>
+                <button
+                  className="icon-button"
+                  title="新建作品"
+                  aria-label="新建作品"
+                  onClick={() => setModal({ kind: "project" })}
+                >
+                  <Plus size={15} />
+                </button>
+                <button
+                  className="icon-button directory-close"
+                  title="收起章节目录"
+                  aria-label="收起目录"
+                  onClick={() => {
+                    setMobileNav(false);
+                    if (viewportWidth > 760) setDirectoryOpen(false);
+                  }}
+                >
+                  <PanelLeftClose size={16} />
+                </button>
+              </div>
+            </div>
+            <div className="project-switch">
+              <select
+                aria-label="选择作品"
+                value={projectId}
+                onChange={(e) => void navigate("book", e.target.value)}
+              >
+                <option value="" disabled>
+                  选择一部作品
+                </option>
+                {projects.data?.map((p) => (
+                  <option value={p.id} key={p.id}>
+                    {p.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <label className="directory-search">
+              <Search size={14} />
+              <input
+                aria-label="搜索章节"
+                placeholder="搜索章节或卷名"
+                value={chapterSearch}
+                onChange={(e) => setChapterSearch(e.target.value)}
+              />
+              {chapterSearch && (
+                <button
+                  className="icon-button"
+                  type="button"
+                  aria-label="清空章节搜索"
+                  onClick={() => setChapterSearch("")}
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </label>
+            <nav className="chapter-list" aria-label="本书章节">
+              {(() => {
+                const needle = chapterSearch.trim().toLowerCase();
+                const visible = chapters.filter(
+                  (c) =>
+                    !needle ||
+                    (c.title + " " + c.volume).toLowerCase().includes(needle),
+                );
+                const groups: {
+                  key: string;
+                  name: string;
+                  chapters: Chapter[];
+                }[] = [];
+                for (const c of visible) {
+                  const last = groups.at(-1);
+                  const name = c.volume || "正文";
+                  if (last?.name === name) last.chapters.push(c);
+                  else
+                    groups.push({
+                      key: name + ":" + c.id,
+                      name,
+                      chapters: [c],
+                    });
+                }
+                if (!visible.length)
+                  return (
+                    <div className="nav-empty">
+                      {needle ? "没有找到匹配章节" : "故事从第一章开始"}
+                    </div>
+                  );
+                return groups.map((group) => {
+                  const collapsed = !needle && collapsedVolumes.has(group.key);
+                  return (
+                    <section className="directory-volume" key={group.key}>
+                      <button
+                        className="volume-label"
+                        aria-expanded={!collapsed}
+                        aria-label={(collapsed ? "展开" : "收起") + group.name}
+                        onClick={() =>
+                          setCollapsedVolumes((old) => {
+                            const next = new Set(old);
+                            if (next.has(group.key)) next.delete(group.key);
+                            else next.add(group.key);
+                            return next;
+                          })
+                        }
+                      >
+                        {collapsed ? (
+                          <ChevronRight size={12} />
+                        ) : (
+                          <ChevronDown size={12} />
+                        )}
+                        <span>{group.name}</span>
+                        <small>{group.chapters.length}</small>
+                      </button>
+                      {!collapsed &&
+                        group.chapters.map((c) => (
+                          <div
+                            className={
+                              "chapter-nav " +
+                              (chapterId === c.id ? "selected" : "")
+                            }
+                            key={c.id}
+                          >
+                            <button
+                              className="chapter-link"
+                              aria-current={
+                                chapterId === c.id ? "page" : undefined
+                              }
+                              onClick={() =>
+                                void navigate("write", projectId, c.id)
+                              }
+                            >
+                              <span className="chapter-number">
+                                {String(chapters.indexOf(c) + 1).padStart(
+                                  2,
+                                  "0",
+                                )}
+                              </span>
+                              <span className="chapter-title">{c.title}</span>
+                              {c.needsReview ? (
+                                <span
+                                  className="chapter-dot warning"
+                                  title="正文需复核"
+                                />
+                              ) : c.finalRevisionId ? (
+                                <Check size={12} className="chapter-check" />
+                              ) : (
+                                <span className="chapter-dot" />
+                              )}
+                            </button>
+                            <div className="chapter-nav-actions">
+                              <button
+                                aria-label={"上移" + c.title}
+                                onClick={() => moveChapter(c, -1)}
+                              >
+                                <ArrowUp size={11} />
+                              </button>
+                              <button
+                                aria-label={"下移" + c.title}
+                                onClick={() => moveChapter(c, 1)}
+                              >
+                                <ArrowDown size={11} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                    </section>
+                  );
+                });
+              })()}
+            </nav>
+            <button
+              className="new-chapter"
               disabled={!projectId}
               onClick={createChapter}
             >
-              <Plus size={17} />
+              <FilePlus2 size={15} /> 添加章节
             </button>
-          </div>
-          <nav className="chapter-list">
-            {!chapters.length ? (
-              <div className="nav-empty">故事从第一章开始</div>
-            ) : (
-              chapters.map((c, i) => (
-                <div key={c.id}>
-                  {(i === 0 || chapters[i - 1].volume !== c.volume) && (
-                    <div className="volume-label">
-                      <ChevronDown size={13} />
-                      {c.volume || "正文"}
-                    </div>
-                  )}
-                  <div
-                    className={
-                      "chapter-nav " + (chapterId === c.id ? "selected" : "")
-                    }
-                  >
-                    <button
-                      className="chapter-link"
-                      onClick={() => void navigate("write", projectId, c.id)}
-                    >
-                      <span className="chapter-number">
-                        {String(i + 1).padStart(2, "0")}
-                      </span>
-                      <span className="chapter-title">{c.title}</span>
-                      {c.needsReview ? (
-                        <span
-                          className="chapter-dot warning"
-                          title="正文需复核"
-                        />
-                      ) : c.finalRevisionId ? (
-                        <Check size={12} className="chapter-check" />
-                      ) : (
-                        <span className="chapter-dot" />
-                      )}
-                    </button>
-                    <div className="chapter-nav-actions">
-                      <button
-                        aria-label={`上移${c.title}`}
-                        onClick={() => moveChapter(c, -1)}
-                      >
-                        <ArrowUp size={11} />
-                      </button>
-                      <button
-                        aria-label={`下移${c.title}`}
-                        onClick={() => moveChapter(c, 1)}
-                      >
-                        <ArrowDown size={11} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </nav>
-          <button
-            className="new-chapter"
-            disabled={!projectId}
-            onClick={createChapter}
-          >
-            <FilePlus2 size={15} /> 添加章节
-          </button>
-          <div className="sidebar-bottom">
-            <button onClick={() => setModal({ kind: "impacts" })}>
-              <Clock3 size={15} /> 改稿影响记录
-              {detail.data?.project.health === "RebuildRequired" && (
-                <span className="tiny-dot warning" />
-              )}
-            </button>
-            <div className="local-note">
-              <Leaf size={13} />
-              <span>文字留在自己的书房</span>
+            <div className="directory-mobile-actions">
+              <button
+                aria-label="返回作品规划"
+                onClick={() => void navigate("book")}
+              >
+                <BookMarked size={14} />
+                作品规划
+              </button>
+              <button
+                aria-label="打开创作工作室"
+                onClick={() => openWorkspaceStudio("canvas")}
+                disabled={!detail.data}
+              >
+                <Waypoints size={14} />
+                创作工具
+              </button>
+              <button
+                aria-label="目录中打开写作 Skills"
+                onClick={() => {
+                  setMobileNav(false);
+                  setSkillsOpen(true);
+                }}
+              >
+                <Leaf size={14} />
+                写作指南
+              </button>
             </div>
-          </div>
-        </aside>
+            <div className="sidebar-bottom">
+              <button onClick={() => setModal({ kind: "impacts" })}>
+                <Clock3 size={14} /> 改稿影响记录{" "}
+                {detail.data?.project.health === "RebuildRequired" && (
+                  <span className="tiny-dot warning" />
+                )}
+              </button>
+              <div className="local-note">
+                <Leaf size={12} />
+                <span>文字留在自己的书房</span>
+              </div>
+            </div>
+          </aside>
+          <WorkspaceDivider
+            className="directory-divider"
+            label="调整章节目录宽度"
+            value={directoryWidth}
+            min={190}
+            max={directoryMax}
+            onChange={setPreferredDirectoryWidth}
+          />
+        </>
       )}
       {surface === "library" ? (
         <LibraryHome
@@ -649,6 +1344,7 @@ export default function App() {
         detail.data ? (
           <BookHome
             key={projectId}
+            styleRequest={styleRequest}
             detail={detail.data}
             onWrite={(cid) =>
               void navigate("write", projectId, cid || chapters[0]?.id)
@@ -727,7 +1423,22 @@ export default function App() {
                 }
                 config={config.data}
                 assistantOpen={assistantOpen}
-                onToggleAssistant={() => setAssistantOpen(!assistantOpen)}
+                focusMode={focusMode}
+                assistantWidth={assistantWidth}
+                assistantMax={assistantMax}
+                onAssistantWidth={setPreferredAssistantWidth}
+                directoryOpen={directoryOpen}
+                onToggleDirectory={toggleDirectory}
+                onOpenAssistant={() => {
+                  setFocusMode(false);
+                  setAssistantOpen(true);
+                  setMobileNav(false);
+                }}
+                onToggleAssistant={() => {
+                  setFocusMode(false);
+                  setAssistantOpen(focusMode ? true : !assistantOpen);
+                  setMobileNav(false);
+                }}
                 onSaved={refresh}
                 notify={notify}
                 onHistory={() => setModal({ kind: "history" })}
@@ -753,6 +1464,11 @@ export default function App() {
           </main>
         </>
       )}
+      <WorkspaceCommandPalette
+        open={commandsOpen && surface === "write"}
+        onClose={() => setCommandsOpen(false)}
+        commands={commands}
+      />
       {notice && (
         <div className="toast" role="status">
           <span>{notice}</span>
@@ -849,7 +1565,7 @@ export default function App() {
             <ImpactPanel
               projectId={projectId}
               onNavigate={(id) => {
-                setChapterId(id);
+                void navigate("write", projectId, id);
                 setModal(null);
               }}
             />
@@ -880,6 +1596,22 @@ export default function App() {
             projectId={projectId}
             notify={notify}
             onClose={() => setSkillsOpen(false)}
+          />
+        </Suspense>
+      )}
+      {authorMemoryOpen && (
+        <Suspense
+          fallback={<div className="studio-loading">正在打开作者记忆…</div>}
+        >
+          <LazyAuthorMemories
+            key={
+              (authorMemoryOpen.projectId || "author") +
+              (authorMemoryOpen.initialDraft?.sourceTurnId || "")
+            }
+            projectId={authorMemoryOpen.projectId}
+            initialDraft={authorMemoryOpen.initialDraft}
+            onClose={() => setAuthorMemoryOpen(null)}
+            notify={notify}
           />
         </Suspense>
       )}
@@ -1039,6 +1771,13 @@ function ChapterWorkspace({
   detail,
   config,
   assistantOpen,
+  focusMode,
+  assistantWidth,
+  assistantMax,
+  onAssistantWidth,
+  directoryOpen,
+  onToggleDirectory,
+  onOpenAssistant,
   onToggleAssistant,
   onSaved,
   notify,
@@ -1051,6 +1790,13 @@ function ChapterWorkspace({
   detail: Detail;
   config?: { model: string; externalModel: boolean };
   assistantOpen: boolean;
+  focusMode: boolean;
+  assistantWidth: number;
+  assistantMax: number;
+  onAssistantWidth: (width: number) => void;
+  directoryOpen: boolean;
+  onToggleDirectory: () => void;
+  onOpenAssistant: () => void;
   onToggleAssistant: () => void;
   onSaved: () => void;
   notify: (s: string) => void;
@@ -1068,6 +1814,10 @@ function ChapterWorkspace({
     [metadataBusy, setMetadataBusy] = useState(false);
   const [editorReset, setEditorReset] = useState(0);
   const [selection, setSelection] = useState("");
+  const [assistantRequest, setAssistantRequest] = useState<{
+    id: number;
+    text: string;
+  }>();
   const saveTitle = async () => {
     if (title === chapter.title) return;
     setMetadataBusy(true);
@@ -1126,7 +1876,7 @@ function ChapterWorkspace({
       onReload();
       notify("选中的修订已保存为新版本");
     } catch (e) {
-      notify(message(e));
+      throw e;
     }
   };
   const count = plainText(draft.doc).replace(/\s/g, "").length;
@@ -1142,6 +1892,14 @@ function ChapterWorkspace({
       <section className="writing-pane">
         <div className="chapter-header">
           <div className="breadcrumbs">
+            <button
+              className="icon-button directory-restore"
+              aria-label={directoryOpen ? "收起正文目录" : "展开正文目录"}
+              title={directoryOpen ? "收起章节目录" : "展开章节目录"}
+              onClick={onToggleDirectory}
+            >
+              <PanelLeftOpen size={16} />
+            </button>
             <BookOpen size={13} />
             <span>{detail.project.title}</span>
             <ChevronRight size={12} />
@@ -1190,10 +1948,10 @@ function ChapterWorkspace({
             </button>
             <button
               className="icon-button"
-              aria-label={assistantOpen ? "收起助手" : "打开助手"}
+              aria-label={assistantOpen && !focusMode ? "收起助手" : "打开助手"}
               onClick={onToggleAssistant}
             >
-              {assistantOpen ? (
+              {assistantOpen && !focusMode ? (
                 <PanelRightClose size={18} />
               ) : (
                 <PanelRightOpen size={18} />
@@ -1278,6 +2036,10 @@ function ChapterWorkspace({
             onSelection={setSelection}
             resetKey={editorReset}
             readOnly={readOnly}
+            onAskAI={(text: string) => {
+              setAssistantRequest({ id: Date.now(), text });
+              onOpenAssistant();
+            }}
           />
           {!count && (
             <span className="editor-placeholder">
@@ -1314,7 +2076,27 @@ function ChapterWorkspace({
         </footer>
       </section>
       {assistantOpen && (
+        <>
+          <button
+            className="workspace-assistant-scrim"
+            aria-label="关闭助手面板"
+            onClick={onToggleAssistant}
+          />
+          <WorkspaceDivider
+            className="assistant-divider"
+            label="调整创作伙伴宽度"
+            value={assistantWidth}
+            min={300}
+            max={assistantMax}
+            reverse
+            onChange={onAssistantWidth}
+          />
+        </>
+      )}
+      {
         <Assistant
+          hidden={!assistantOpen}
+          composeRequest={assistantRequest}
           onClose={onToggleAssistant}
           chapter={chapter}
           detail={detail}
@@ -1327,7 +2109,7 @@ function ChapterWorkspace({
           onSaved={onSaved}
           notify={notify}
         />
-      )}
+      }
     </div>
   );
 }

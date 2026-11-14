@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/jackc/pgx/v5"
 	"novel/internal/job"
 	"novel/internal/review"
 	"sort"
@@ -11,6 +12,7 @@ import (
 )
 
 type CandidateRequest struct {
+	IgnoreMemory    bool   `json:"ignoreMemory,omitempty"`
 	Count           int    `json:"count"`
 	InputRevisionID string `json:"inputRevisionId"`
 	Instructions    string `json:"instructions"`
@@ -23,6 +25,7 @@ type CandidateRanking struct {
 	Explanation string         `json:"explanation"`
 }
 type CandidateGroup struct {
+	OwnerID   string             `json:"ownerId,omitempty"`
 	ID        string             `json:"id"`
 	ProjectID string             `json:"projectId"`
 	ChapterID string             `json:"chapterId"`
@@ -47,10 +50,34 @@ func (s *Service) StartCandidates(ctx context.Context, cid string, in CandidateR
 	if c.CurrentRevisionID != in.InputRevisionID {
 		return CandidateGroup{}, &Conflict{Message: "正文已变化"}
 	}
+	batch, e := s.prepareAuthorBatch(ctx, c.ProjectID, in.IgnoreMemory)
+	if e != nil {
+		return CandidateGroup{}, e
+	}
+	tx, e := s.DB.Begin(ctx)
+	if e != nil {
+		return CandidateGroup{}, e
+	}
+	defer tx.Rollback(ctx)
 	raw, _ := json.Marshal(in)
 	id := job.NewID()
-	_, e = s.DB.Exec(ctx, "INSERT INTO wb_candidate_groups(id,project_id,chapter_id,status,input) VALUES($1,$2,$3,'Running',$4)", id, c.ProjectID, cid, raw)
+	_, e = tx.Exec(ctx, "INSERT INTO wb_candidate_groups(id,project_id,chapter_id,status,input) VALUES($1,$2,$3,'Running',$4)", id, c.ProjectID, cid, raw)
 	if e != nil {
+		return CandidateGroup{}, e
+	}
+	if batch != nil {
+		valid, err := authorMemoryBaselineCurrent(ctx, tx, batch.Baseline)
+		if err != nil {
+			return CandidateGroup{}, err
+		}
+		if !valid {
+			return CandidateGroup{}, &Conflict{Message: "作者记忆已变化，请重新启动"}
+		}
+		if e = saveAuthorBatchTx(ctx, tx, "candidate", id, batch); e != nil {
+			return CandidateGroup{}, e
+		}
+	}
+	if e = tx.Commit(ctx); e != nil {
 		return CandidateGroup{}, e
 	}
 	return s.GetCandidateGroup(ctx, id)
@@ -69,6 +96,13 @@ func (s *Service) GetCandidateGroup(ctx context.Context, id string) (CandidateGr
 		return g, e
 	}
 	e = json.Unmarshal(rank, &g.Rankings)
+	if e != nil {
+		return g, e
+	}
+	e = s.DB.QueryRow(ctx, "SELECT owner_id FROM wb_candidate_author_contexts WHERE group_id=$1", id).Scan(&g.OwnerID)
+	if e == pgx.ErrNoRows {
+		e = nil
+	}
 	return g, e
 }
 func (s *Service) ListCandidateGroups(ctx context.Context, pid string) ([]CandidateGroup, error) {
@@ -123,6 +157,11 @@ func (s *Service) advanceCandidate(ctx context.Context, id string) error {
 	if e != nil {
 		return e
 	}
+	executionCtx, ignoreMemory, ownerErr := s.authorBatchExecutionContext(ctx, "candidate", id, g.ProjectID)
+	if ownerErr != nil {
+		_, e = s.DB.Exec(ctx, "UPDATE wb_candidate_groups SET status='NeedsAttention' WHERE id=$1", id)
+		return e
+	}
 	runs := []Run{}
 	for i := 0; i < g.Input.Count; i++ {
 		intent := fmt.Sprintf("candidate:%s:%d", g.ID, i)
@@ -130,7 +169,7 @@ func (s *Service) advanceCandidate(ctx context.Context, id string) error {
 		e = s.DB.QueryRow(ctx, "SELECT id FROM wb_runs WHERE intent_id=$1", intent).Scan(&runID)
 		var r Run
 		if e != nil {
-			r, e = s.SubmitRun(ctx, g.ChapterID, RunRequest{IntentID: intent, TaskType: "draft", InputRevisionID: g.Input.InputRevisionID, Instructions: g.Input.Instructions + fmt.Sprintf("\n候选%d：提供一种独立叙事展开，保持所有事实约束。", i+1)})
+			r, e = s.SubmitRun(executionCtx, g.ChapterID, RunRequest{IgnoreMemory: ignoreMemory, IntentID: intent, TaskType: "draft", InputRevisionID: g.Input.InputRevisionID, Instructions: g.Input.Instructions + fmt.Sprintf("\n候选%d：提供一种独立叙事展开，保持所有事实约束。", i+1)})
 			if e != nil {
 				_, _ = s.DB.Exec(ctx, "UPDATE wb_candidate_groups SET status='Failed' WHERE id=$1", id)
 				return nil
@@ -167,7 +206,7 @@ func (s *Service) advanceCandidate(ctx context.Context, id string) error {
 		var reviewRun Run
 		e = s.DB.QueryRow(ctx, "SELECT id FROM wb_runs WHERE intent_id=$1", intent).Scan(&rid)
 		if e != nil {
-			reviewRun, e = s.SubmitRun(ctx, g.ChapterID, RunRequest{IntentID: intent, TaskType: "review", InputRevisionID: g.Input.InputRevisionID, CandidateRunID: r.ID})
+			reviewRun, e = s.SubmitRun(executionCtx, g.ChapterID, RunRequest{IgnoreMemory: ignoreMemory, IntentID: intent, TaskType: "review", InputRevisionID: g.Input.InputRevisionID, CandidateRunID: r.ID})
 			if e != nil {
 				_, _ = s.DB.Exec(ctx, "UPDATE wb_candidate_groups SET status='NeedsAttention' WHERE id=$1", id)
 				return nil

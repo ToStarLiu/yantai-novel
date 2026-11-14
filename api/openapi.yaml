@@ -14919,6 +14919,623 @@
           }
         }
       }
+    },
+    "/api/author-memories": {
+      "get": {
+        "summary": "列出自己的作者记忆与配置版本",
+        "operationId": "list_author_memories",
+        "tags": [
+          "AuthorMemory"
+        ],
+        "description": "仅当前登录作者可读写自己的私人记忆，管理员不能读取他人的条目。账号级记忆跨书使用，book条目仅用于指定作品。普通登录账号可用；写入仍验证同源与CSRF。Agent建议始终为pending，只有作者显式确认才成为active。最多保存200条，注入最多6条且标题正文总计1600字。私人记忆不会进入共享作品导出。",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "省略时列出账号全部条目；指定时返回作者范围和该书条目，并验证作品访问权。"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "pending",
+                "disabled",
+                "rejected"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorMemoryList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "字段、来源证据、容量或导入内容无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "请先登录"
+          },
+          "403": {
+            "description": "项目访问权、来源作者、Origin或CSRF验证失败"
+          },
+          "404": {
+            "description": "条目/作品不存在，或该条目不属于当前作者"
+          },
+          "409": {
+            "description": "expectedVersion已过期或发生同范围内容冲突，请刷新后重试"
+          }
+        }
+      },
+      "post": {
+        "summary": "作者显式保存一条私人记忆",
+        "operationId": "create_author_memory",
+        "tags": [
+          "AuthorMemory"
+        ],
+        "description": "仅当前登录作者可读写自己的私人记忆，管理员不能读取他人的条目。账号级记忆跨书使用，book条目仅用于指定作品。普通登录账号可用；写入仍验证同源与CSRF。Agent建议始终为pending，只有作者显式确认才成为active。最多保存200条，注入最多6条且标题正文总计1600字。私人记忆不会进入共享作品导出。",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorMemory"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "字段、来源证据、容量或导入内容无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "请先登录"
+          },
+          "403": {
+            "description": "项目访问权、来源作者、Origin或CSRF验证失败"
+          },
+          "404": {
+            "description": "条目/作品不存在，或该条目不属于当前作者"
+          },
+          "409": {
+            "description": "expectedVersion已过期或发生同范围内容冲突，请刷新后重试"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthorMemoryInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/author-memories/{id}": {
+      "put": {
+        "summary": "编辑、确认、停用或拒绝自己的记忆",
+        "operationId": "update_author_memory",
+        "tags": [
+          "AuthorMemory"
+        ],
+        "description": "仅当前登录作者可读写自己的私人记忆，管理员不能读取他人的条目。账号级记忆跨书使用，book条目仅用于指定作品。普通登录账号可用；写入仍验证同源与CSRF。Agent建议始终为pending，只有作者显式确认才成为active。最多保存200条，注入最多6条且标题正文总计1600字。私人记忆不会进入共享作品导出。",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorMemory"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "字段、来源证据、容量或导入内容无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "请先登录"
+          },
+          "403": {
+            "description": "项目访问权、来源作者、Origin或CSRF验证失败"
+          },
+          "404": {
+            "description": "条目/作品不存在，或该条目不属于当前作者"
+          },
+          "409": {
+            "description": "expectedVersion已过期或发生同范围内容冲突，请刷新后重试"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthorMemoryUpdate"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "永久忘记自己的记忆正文和来源引文",
+        "operationId": "forget_author_memory",
+        "tags": [
+          "AuthorMemory"
+        ],
+        "description": "仅当前登录作者可读写自己的私人记忆，管理员不能读取他人的条目。账号级记忆跨书使用，book条目仅用于指定作品。普通登录账号可用；写入仍验证同源与CSRF。Agent建议始终为pending，只有作者显式确认才成为active。最多保存200条，注入最多6条且标题正文总计1600字。私人记忆不会进入共享作品导出。 物理删除条目；审计事件只保留ID、动作和内容哈希。旧对话记录作为独立作者私有对话保留。 expectedVersion须通过query或JSON请求体提供，二者同时提供时以query为准。",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "expectedVersion",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            },
+            "description": "与JSON请求体二选一；采用当前条目版本，缺少版本不能删除。"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "字段、来源证据、容量或导入内容无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "请先登录"
+          },
+          "403": {
+            "description": "项目访问权、来源作者、Origin或CSRF验证失败"
+          },
+          "404": {
+            "description": "条目/作品不存在，或该条目不属于当前作者"
+          },
+          "409": {
+            "description": "expectedVersion已过期或发生同范围内容冲突，请刷新后重试"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "expectedVersion"
+                ],
+                "properties": {
+                  "expectedVersion": {
+                    "type": "integer",
+                    "format": "int64",
+                    "minimum": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/author-memory-settings": {
+      "get": {
+        "summary": "读取当前作者的记忆和建议开关",
+        "operationId": "get_author_memory_settings",
+        "tags": [
+          "AuthorMemory"
+        ],
+        "description": "仅当前登录作者可读写自己的私人记忆，管理员不能读取他人的条目。账号级记忆跨书使用，book条目仅用于指定作品。普通登录账号可用；写入仍验证同源与CSRF。Agent建议始终为pending，只有作者显式确认才成为active。最多保存200条，注入最多6条且标题正文总计1600字。私人记忆不会进入共享作品导出。",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorMemorySettings"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "字段、来源证据、容量或导入内容无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "请先登录"
+          },
+          "403": {
+            "description": "项目访问权、来源作者、Origin或CSRF验证失败"
+          },
+          "404": {
+            "description": "条目/作品不存在，或该条目不属于当前作者"
+          },
+          "409": {
+            "description": "expectedVersion已过期或发生同范围内容冲突，请刷新后重试"
+          }
+        }
+      },
+      "put": {
+        "summary": "乐观更新作者记忆设置",
+        "operationId": "update_author_memory_settings",
+        "tags": [
+          "AuthorMemory"
+        ],
+        "description": "仅当前登录作者可读写自己的私人记忆，管理员不能读取他人的条目。账号级记忆跨书使用，book条目仅用于指定作品。普通登录账号可用；写入仍验证同源与CSRF。Agent建议始终为pending，只有作者显式确认才成为active。最多保存200条，注入最多6条且标题正文总计1600字。私人记忆不会进入共享作品导出。",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorMemorySettings"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "字段、来源证据、容量或导入内容无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "请先登录"
+          },
+          "403": {
+            "description": "项目访问权、来源作者、Origin或CSRF验证失败"
+          },
+          "404": {
+            "description": "条目/作品不存在，或该条目不属于当前作者"
+          },
+          "409": {
+            "description": "expectedVersion已过期或发生同范围内容冲突，请刷新后重试"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthorMemorySettingsUpdate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/author-memories/export": {
+      "get": {
+        "summary": "导出自己的私人记忆JSON",
+        "operationId": "export_author_memories",
+        "tags": [
+          "AuthorMemory"
+        ],
+        "description": "仅当前登录作者可读写自己的私人记忆，管理员不能读取他人的条目。账号级记忆跨书使用，book条目仅用于指定作品。普通登录账号可用；写入仍验证同源与CSRF。Agent建议始终为pending，只有作者显式确认才成为active。最多保存200条，注入最多6条且标题正文总计1600字。私人记忆不会进入共享作品导出。",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorMemoryExport"
+                }
+              }
+            },
+            "headers": {
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "attachment; filename=\"author-memories.json\""
+              }
+            }
+          },
+          "400": {
+            "description": "字段、来源证据、容量或导入内容无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "请先登录"
+          },
+          "403": {
+            "description": "项目访问权、来源作者、Origin或CSRF验证失败"
+          },
+          "404": {
+            "description": "条目/作品不存在，或该条目不属于当前作者"
+          },
+          "409": {
+            "description": "expectedVersion已过期或发生同范围内容冲突，请刷新后重试"
+          }
+        }
+      }
+    },
+    "/api/author-memories/import": {
+      "post": {
+        "summary": "确认导入作者私人记忆JSON",
+        "operationId": "import_author_memories",
+        "tags": [
+          "AuthorMemory"
+        ],
+        "description": "仅当前登录作者可读写自己的私人记忆，管理员不能读取他人的条目。账号级记忆跨书使用，book条目仅用于指定作品。普通登录账号可用；写入仍验证同源与CSRF。Agent建议始终为pending，只有作者显式确认才成为active。最多保存200条，注入最多6条且标题正文总计1600字。私人记忆不会进入共享作品导出。",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorMemoryImportResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "字段、来源证据、容量或导入内容无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "请先登录"
+          },
+          "403": {
+            "description": "项目访问权、来源作者、Origin或CSRF验证失败"
+          },
+          "404": {
+            "description": "条目/作品不存在，或该条目不属于当前作者"
+          },
+          "409": {
+            "description": "expectedVersion已过期或发生同范围内容冲突，请刷新后重试"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthorMemoryImport"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{id}/author-context": {
+      "get": {
+        "summary": "创建者查看任务使用的作者记忆",
+        "operationId": "get__api_runs_id_author_context",
+        "tags": [
+          "AuthorMemory"
+        ],
+        "description": "读取服务器冻结的私人偏好与排除原因。必须是任务创建者且仍可访问作品；共享作品管理员不能读取他人的私人输入。Copilot制品及旧任务没有普通任务快照时返回404。",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "私人作者上下文",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorTaskContext"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求未完成",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "请求未完成",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "作品权限已撤销或来源账号不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "没有私人快照或不属于当前作者（管理员无旁路）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "请求未完成",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "请求未完成",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -16109,6 +16726,11 @@
           },
           "volumeId": {
             "type": "string"
+          },
+          "ignoreMemory": {
+            "type": "boolean",
+            "default": false,
+            "description": "本次任务或批量子任务不使用作者私人偏好；不删除记忆。事实提取/审稿/来源分析始终排除个人文风。"
           }
         },
         "required": [
@@ -16277,6 +16899,21 @@
           },
           "writingSkills": {
             "$ref": "#/components/schemas/WritingSkillSnapshot"
+          },
+          "authorMemory": {
+            "$ref": "#/components/schemas/AuthorMemoryBaseline"
+          },
+          "ownerId": {
+            "type": "string",
+            "description": "服务端绑定的任务创建者；不能通过请求替换。"
+          },
+          "ignoreMemory": {
+            "type": "boolean"
+          },
+          "authorContextBytes": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "私有请求增补的UTF-8字节预算；不包含正文，仅用于预算预留。"
           }
         },
         "required": [
@@ -16764,6 +17401,10 @@
           },
           "status": {
             "type": "string"
+          },
+          "ownerId": {
+            "type": "string",
+            "description": "冻结的创建者，仅该作者可变更批量执行状态。"
           }
         },
         "required": [
@@ -16822,6 +17463,11 @@
           },
           "instructions": {
             "type": "string"
+          },
+          "ignoreMemory": {
+            "type": "boolean",
+            "default": false,
+            "description": "本次任务或批量子任务不使用作者私人偏好；不删除记忆。事实提取/审稿/来源分析始终排除个人文风。"
           }
         },
         "required": [
@@ -16848,6 +17494,11 @@
               "type": "string"
             },
             "type": "array"
+          },
+          "ignoreMemory": {
+            "type": "boolean",
+            "default": false,
+            "description": "本次任务或批量子任务不使用作者私人偏好；不删除记忆。事实提取/审稿/来源分析始终排除个人文风。"
           }
         },
         "required": [
@@ -17639,6 +18290,11 @@
           },
           "workflowId": {
             "type": "string"
+          },
+          "ignoreMemory": {
+            "type": "boolean",
+            "default": false,
+            "description": "本次任务或批量子任务不使用作者私人偏好；不删除记忆。事实提取/审稿/来源分析始终排除个人文风。"
           }
         },
         "required": [
@@ -17694,6 +18350,13 @@
           },
           "workflow": {
             "$ref": "#/components/schemas/WorkflowDefinition"
+          },
+          "ownerId": {
+            "type": "string",
+            "description": "冻结的创建者，仅该作者可变更批量执行状态。"
+          },
+          "ignoreMemory": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -19927,6 +20590,21 @@
               "chapter"
             ],
             "description": "省略时继承会话；不可在已有会话中切换 book/chapter。"
+          },
+          "ignoreMemory": {
+            "type": "boolean",
+            "default": false,
+            "description": "本轮不加载作者记忆、不产生记忆建议；旧偏好不会经摘要重新注入。"
+          },
+          "candidateRunId": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "章节对话中继续打磨的候选ID；须同作品/章/正文版本、成功且当前有效，并属于作者上下文。不可与正文选段或compact混用。"
+          },
+          "candidateSelection": {
+            "type": "string",
+            "maxLength": 12000,
+            "description": "逐字来自绑定候选且只出现一次的选段；候选绑定为空时不可提供。UTF-8字节限12000。"
           }
         },
         "required": [
@@ -20027,6 +20705,31 @@
           },
           "writingSkills": {
             "$ref": "#/components/schemas/WritingSkillSnapshot"
+          },
+          "ignoreMemory": {
+            "type": "boolean",
+            "default": false,
+            "description": "本轮不加载作者记忆、不产生记忆建议；旧偏好不会经摘要重新注入。"
+          },
+          "authorMemory": {
+            "$ref": "#/components/schemas/AuthorMemorySnapshot"
+          },
+          "suggestMemories": {
+            "type": "boolean",
+            "description": "本轮捕获的建议开关；实际写入前还会验证当前开关和当前私有轮次。"
+          },
+          "candidate": {
+            "$ref": "#/components/schemas/CandidateReference"
+          },
+          "candidateRunId": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "章节对话中继续打磨的候选ID；须同作品/章/正文版本、成功且当前有效，并属于作者上下文。不可与正文选段或compact混用。"
+          },
+          "candidateSelection": {
+            "type": "string",
+            "maxLength": 12000,
+            "description": "逐字来自绑定候选且只出现一次的选段；候选绑定为空时不可提供。UTF-8字节限12000。"
           }
         },
         "required": [
@@ -20081,7 +20784,8 @@
               "revision-candidate",
               "blueprint-proposal",
               "book-plan-proposal",
-              "diff"
+              "diff",
+              "author-memory-proposal"
             ]
           },
           "title": {
@@ -20116,6 +20820,41 @@
             "items": {
               "$ref": "#/components/schemas/CopilotDiffHunk"
             }
+          },
+          "memoryId": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "author",
+              "book"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "pending",
+              "disabled",
+              "rejected"
+            ]
+          },
+          "parentCandidateRunId": {
+            "type": "string",
+            "description": "本候选延续的上一稿ID"
+          },
+          "comparisonRunId": {
+            "type": "string",
+            "description": "父版比较引用的Run ID"
+          },
+          "comparisonBase": {
+            "type": "string",
+            "enum": [
+              "source",
+              "parent"
+            ],
+            "description": "source是保存原稿采用基准；parent差异只读，不能直接用于保存正文"
           }
         },
         "required": [
@@ -20993,6 +21732,482 @@
           "version",
           "hash",
           "items"
+        ],
+        "additionalProperties": false
+      },
+      "AuthorMemoryInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "title",
+          "content"
+        ],
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "author",
+              "book"
+            ],
+            "default": "author"
+          },
+          "projectId": {
+            "type": "string",
+            "description": "author范围须为空；book范围须为当前可访问的作品ID。"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "preference",
+              "voice",
+              "workflow",
+              "conversation"
+            ],
+            "default": "preference"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1200
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "pending",
+              "disabled",
+              "rejected"
+            ],
+            "default": "active"
+          },
+          "pinned": {
+            "type": "boolean",
+            "default": false
+          },
+          "sourceSessionId": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "sourceTurnId": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "sourceQuote": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "非空来源必须逐字引用当前账号自己的作者消息，不能使用助手输出作为证据。"
+          }
+        }
+      },
+      "AuthorMemory": {
+        "type": "object",
+        "required": [
+          "id",
+          "ownerId",
+          "scope",
+          "projectId",
+          "kind",
+          "title",
+          "content",
+          "status",
+          "pinned",
+          "version",
+          "sourceSessionId",
+          "sourceTurnId",
+          "sourceQuote",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "author",
+              "book"
+            ],
+            "default": "author"
+          },
+          "projectId": {
+            "type": "string",
+            "description": "author范围须为空；book范围须为当前可访问的作品ID。"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "preference",
+              "voice",
+              "workflow",
+              "conversation"
+            ],
+            "default": "preference"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1200
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "pending",
+              "disabled",
+              "rejected"
+            ],
+            "default": "active"
+          },
+          "pinned": {
+            "type": "boolean",
+            "default": false
+          },
+          "sourceSessionId": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "sourceTurnId": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "sourceQuote": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "非空来源必须逐字引用当前账号自己的作者消息，不能使用助手输出作为证据。"
+          },
+          "id": {
+            "type": "string"
+          },
+          "ownerId": {
+            "type": "string",
+            "readOnly": true
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AuthorMemoryUpdate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "expectedVersion"
+        ],
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "author",
+              "book"
+            ],
+            "default": "author"
+          },
+          "projectId": {
+            "type": "string",
+            "description": "author范围须为空；book范围须为当前可访问的作品ID。"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "preference",
+              "voice",
+              "workflow",
+              "conversation"
+            ],
+            "default": "preference"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1200
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "pending",
+              "disabled",
+              "rejected"
+            ],
+            "default": "active"
+          },
+          "pinned": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AuthorMemorySettings": {
+        "type": "object",
+        "required": [
+          "version",
+          "useMemory",
+          "suggestMemories"
+        ],
+        "properties": {
+          "version": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "description": "账号记忆配置版本，任何CRUD或设置变化都会递增。"
+          },
+          "useMemory": {
+            "type": "boolean",
+            "default": true
+          },
+          "suggestMemories": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      },
+      "AuthorMemorySettingsUpdate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "expectedVersion",
+          "useMemory",
+          "suggestMemories"
+        ],
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "useMemory": {
+            "type": "boolean"
+          },
+          "suggestMemories": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AuthorMemoryList": {
+        "type": "object",
+        "required": [
+          "items",
+          "version",
+          "settings"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuthorMemory"
+            },
+            "maxItems": 200
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "settings": {
+            "$ref": "#/components/schemas/AuthorMemorySettings"
+          }
+        }
+      },
+      "AuthorMemoryExport": {
+        "type": "object",
+        "required": [
+          "formatVersion",
+          "items"
+        ],
+        "properties": {
+          "formatVersion": {
+            "type": "integer",
+            "const": 1
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 200,
+            "items": {
+              "$ref": "#/components/schemas/AuthorMemoryInput"
+            }
+          }
+        },
+        "description": "仅导出当前账号私人记忆。剥离对话来源指针和引文，避免在其他实例伪造已核实证据。单书 projectId 需要导入者显式映射并具备访问权。"
+      },
+      "AuthorMemoryImport": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "maxItems": 200,
+            "items": {
+              "$ref": "#/components/schemas/AuthorMemoryInput"
+            }
+          }
+        },
+        "description": "作者显式导入纯JSON条目；不执行脚本，不接受来源指针或引文。事务内原子导入，按账号/范围/作品/规范化内容去重。"
+      },
+      "AuthorMemoryImportResult": {
+        "type": "object",
+        "required": [
+          "imported",
+          "skipped"
+        ],
+        "properties": {
+          "imported": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "skipped": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "AuthorMemorySnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ownerId",
+          "version",
+          "hash",
+          "enabled",
+          "items"
+        ],
+        "properties": {
+          "ownerId": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "description": "仅有效上下文变化时递增；待确认记忆不使正在进行的对话失效。"
+          },
+          "hash": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 6,
+            "items": {
+              "$ref": "#/components/schemas/AuthorMemory"
+            }
+          }
+        },
+        "description": "只保存在当前作者的私有Copilot输入中；标题和正文合计不超过1600字，启动预览更短，细节按需分页读取。"
+      },
+      "AuthorMemoryBaseline": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ownerId",
+          "version",
+          "hash"
+        ],
+        "properties": {
+          "ownerId": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "hash": {
+            "type": "string"
+          }
+        },
+        "description": "共享候选仅携带作者ID/上下文版本/哈希作为采用校验，不含记忆标题、正文或来源引文。"
+      },
+      "CandidateReference": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string"
+          },
+          "sourceRevisionId": {
+            "type": "string"
+          },
+          "textHash": {
+            "type": "string"
+          },
+          "parentCandidateRunId": {
+            "type": "string"
+          },
+          "totalChars": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "runId",
+          "sourceRevisionId",
+          "textHash",
+          "totalChars"
+        ],
+        "additionalProperties": false
+      },
+      "AuthorTaskContext": {
+        "type": "object",
+        "description": "仅创建者可读取的任务私人快照。不会嵌入共享Run、Trace或作品包。",
+        "properties": {
+          "runId": {
+            "type": "string"
+          },
+          "ownerId": {
+            "type": "string"
+          },
+          "ignoreMemory": {
+            "type": "boolean"
+          },
+          "excludedReason": {
+            "type": "string"
+          },
+          "current": {
+            "type": "boolean",
+            "description": "作者记忆基线是否仍有效；作品来源是否过期另看Run.stale。"
+          },
+          "memory": {
+            "$ref": "#/components/schemas/AuthorMemorySnapshot"
+          }
+        },
+        "required": [
+          "runId",
+          "ownerId",
+          "ignoreMemory",
+          "excludedReason",
+          "current",
+          "memory"
         ],
         "additionalProperties": false
       }

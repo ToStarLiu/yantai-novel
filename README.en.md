@@ -18,6 +18,7 @@ The interface is primarily in Chinese. Version **0.4.0** supports the web, an in
 | Manuscripts | Rich-text editing, autosave and recovery buffers, immutable revisions, conflict protection, selection-based rewriting, candidate diffs and explicit adoption |
 | AI partner | Pi tool loop, streaming, persistent conversations, reconnect, cancellation, context compaction, book and chapter scopes |
 | Writing Skills | Preview and import Markdown/ZIP/GitHub/JSON guides, per-book task scopes and priority, versioned edits, complete-package updates, portable exports |
+| Author memory (current source) | Private cross-book preferences, voice, collaboration habits and conversation notes; confirmed suggestions, per-turn disclosure, edit/forget and portable import/export |
 | Story memory | Evidence-backed location, injury, ownership, character knowledge/belief, and foreshadowing; revision impact and filtered retrieval |
 | Advanced tools | Versioned prompts and agents, persistent DAG workflows, review gates, chapter batches, candidate comparison, rule-based sandbox and branches |
 | Collaboration and export | Member roles, invitations, comments, presence, project packages, Markdown/TXT/DOCX/EPUB/PDF/HTML |
@@ -30,6 +31,8 @@ Literary quality, time saved, and long-term voice consistency require evaluation
 ![The writing partner and tool activity](docs/release/screenshots/copilot-conversation.png)
 
 [![CI](https://github.com/ToStarLiu/yantai-novel/actions/workflows/ci.yml/badge.svg)](https://github.com/ToStarLiu/yantai-novel/actions/workflows/ci.yml)
+
+Author memory is available from the top bar and writing workspace. Save a preference directly, remember one of your messages after review, or confirm a pending suggestion. Book and chapter Copilot, single writing tasks, and batch/candidate generation load relevant active notes; factual reviews and extraction remain independent of personal taste. Each task shows its private snapshot and supports opting out. The book’s Voice and Writing page brings together book requirements, personal preferences, original samples and Skills. Explicit candidate references support another revision, selected-passage edits, and comparison with the previous draft before adoption. This is a source-workspace addition, separate from the existing v0.4.0 release downloads. See the [product and privacy contract](docs/development/author-memory.md).
 
 ## Quick start
 

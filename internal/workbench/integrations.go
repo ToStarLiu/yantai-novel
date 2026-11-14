@@ -592,6 +592,9 @@ func (s *Service) GetAgent(ctx context.Context, id string) (AgentDefinition, err
 }
 func cacheKey(input RunInput) string { raw, _ := json.Marshal(input); return job.Hash(raw) }
 func (s *Service) GetRunCache(ctx context.Context, input RunInput) (RunOutput, bool, error) {
+	if input.AuthorContextBytes > 0 {
+		return RunOutput{}, false, nil
+	}
 	var output RunOutput
 	valid, err := snapshotCurrent(ctx, s.DB, Run{ChapterID: input.ChapterID, Type: input.TaskType, Input: input})
 	if err != nil || !valid {
@@ -606,6 +609,9 @@ func (s *Service) GetRunCache(ctx context.Context, input RunInput) (RunOutput, b
 	return output, err == nil, err
 }
 func (s *Service) PutRunCache(ctx context.Context, input RunInput, output RunOutput) error {
+	if input.AuthorContextBytes > 0 {
+		return nil
+	}
 	if output.ProposalID != "" {
 		return nil
 	}

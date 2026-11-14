@@ -233,6 +233,9 @@ func requestEstimate(input RunInput) *float64 {
 	for _, message := range input.Request.Messages {
 		bytes += int64(len(message.Content))
 	}
+	// Private augmentation stays outside shared request JSON, but still reserves
+	// its full UTF-8 byte estimate before enqueue and every dispatch.
+	bytes += input.AuthorContextBytes
 	return estimateCost(input.Policy, bytes, int64(input.Request.MaxOutputTokens))
 }
 
