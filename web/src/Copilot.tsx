@@ -1298,29 +1298,33 @@ function ChapterArtifact({
             >
               继续打磨这稿
             </button>
-            <span>还差一点？</span>
-            {["更含蓄", "少解释", "节奏更紧", "保留原声"].map(
-              (label, index) => (
-                <button
-                  key={label}
-                  type="button"
-                  disabled={!props.artifactReady || !valid}
-                  onClick={() =>
-                    props.onRefine?.(
-                      [
-                        "请继续打磨这份改写候选：用动作和对话表现情绪，减少直接说明心理；保持事实和人物语气。",
-                        "请继续打磨这份改写候选：删去重复解释和段尾总结，让读者自己体会；保持事实。",
-                        "请继续打磨这份改写候选：压紧重复铺陈，让动作推进冲突；保留关键线索和人物意图。",
-                        "请继续打磨这份改写候选：对照原文保留作者措辞、人物口吻和句子节奏，只修改必要部分。",
-                      ][index],
-                      { runId: artifact.runId!, title: artifact.title },
-                    )
-                  }
-                >
-                  {label}
-                </button>
-              ),
-            )}
+            <details className="copilot-feedback-options">
+              <summary>快捷修改建议</summary>
+              <div>
+                {["更含蓄", "少解释", "节奏更紧", "保留原声"].map(
+                  (label, index) => (
+                    <button
+                      key={label}
+                      type="button"
+                      disabled={!props.artifactReady || !valid}
+                      onClick={() =>
+                        props.onRefine?.(
+                          [
+                            "请继续打磨这份改写候选：用动作和对话表现情绪，减少直接说明心理；保持事实和人物语气。",
+                            "请继续打磨这份改写候选：删去重复解释和段尾总结，让读者自己体会；保持事实。",
+                            "请继续打磨这份改写候选：压紧重复铺陈，让动作推进冲突；保留关键线索和人物意图。",
+                            "请继续打磨这份改写候选：对照原文保留作者措辞、人物口吻和句子节奏，只修改必要部分。",
+                          ][index],
+                          { runId: artifact.runId!, title: artifact.title },
+                        )
+                      }
+                    >
+                      {label}
+                    </button>
+                  ),
+                )}
+              </div>
+            </details>
             <small>先放入输入框，由你补充并发送。</small>
           </div>
         )}

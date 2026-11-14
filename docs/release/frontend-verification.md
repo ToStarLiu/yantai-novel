@@ -187,3 +187,10 @@ TypeScript、生产构建、5项单测均通过；新Skills专项3项（14.1秒�
 本次验证包括作者记忆贯穿普通/规划/批量/多候选任务、自定义Agent记忆权限、事实任务排除与私有快照；文风统一页面、原文样例、409草稿及应用内离开保护；明确候选引用、候选选段、父版比较、原稿逐段采用及失败不误报。手机390px无横向溢出。主服务Chrome只读冒烟验证新入口与无修改取消，不写入测试作品。
 
 产品契约见[持续写作流程](../development/writing-flow.md)，完整PG/Pi与恢复数据见[系统验收](acceptance.md)。截图writing-profile-*.png、candidate-iteration.png和task-memory-*.png来自本轮实际浏览器。
+
+
+## 作者工作流收敛 — 2026-11-14
+
+完整47项Chrome回归一次全部通过（3.8分钟），16项前端单测、TypeScript与生产构建通过。新增7项专项验证每书恢复、空白初始版本不误计正文、当前稿定稿统计、可选讨论及草稿保留、菜单键盘/移动层级、记忆待确认与重建的实际章节定位、创建前未保存规划与文风取消。主实例只读冒烟无页面异常，既有正文版本校验一致。
+
+最终回执在 .local/author-workflow-e2e.json；Go只读hasText汇总专项及验证边界见[系统验收](acceptance.md)。操作说明见[作者工作流](../development/author-workflow.md)。截图 simplified-book-*.png 和 simplified-workspace-*.png 为隔离测试库真实渲染；这轮没有写入作者作品或执行付费模型评估。

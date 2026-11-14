@@ -1,3 +1,4 @@
+import { openChapterMaterial } from "./navigation";
 import { test, expect } from "@playwright/test";
 test("planning, rewrite, handoff, style profiles and budgets remain author controlled", async ({
   page,
@@ -22,16 +23,16 @@ test("planning, rewrite, handoff, style profiles and budgets remain author contr
   const editor = page.getByTestId("chapter-editor");
   await editor.fill("林川望向旧桥，雨水正沿着铜印滑落。");
   await expect(page.getByText("已保存", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "本章章纲", exact: true }).click();
+  await openChapterMaterial(page, "本章章纲");
   await page.getByRole("button", { name: "规划建议" }).click();
-  await page.getByRole("button", { name: "本章章纲", exact: true }).click();
+  await openChapterMaterial(page, "本章章纲");
   await expect(
     page.getByRole("button", { name: "填入章纲编辑区" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "填入章纲编辑区" }).click();
   await page.getByRole("button", { name: "保存章纲", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("章纲已保存");
-  await page.getByRole("button", { name: "人物设定", exact: true }).click();
+  await openChapterMaterial(page, "人物设定");
   await page.getByRole("button", { name: "文风", exact: true }).click();
   await page.getByLabel("文风模板").selectOption({ index: 1 });
   await expect(page.getByLabel("设定名称")).not.toHaveValue("");

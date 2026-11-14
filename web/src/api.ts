@@ -42,6 +42,7 @@ export type Chapter = {
   blueprint: string;
   blueprintVersion: number;
   currentRevisionId: string;
+  hasText?: boolean;
   finalRevisionId: string;
   needsReview: boolean;
   deleted: boolean;

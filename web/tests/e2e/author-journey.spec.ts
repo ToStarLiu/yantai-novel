@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { createServer } from "node:http";
 import { authenticate } from "./auth";
+import { openBookSection, openWorkspaceAction } from "./navigation";
 
 const origin = process.env.E2E_BASE_URL || "http://127.0.0.1:8089";
 
@@ -39,9 +40,10 @@ test("an author plans a book before creating chapters and keeps writing when ret
   ).json();
   expect(brief.brief.data.coreConflict).toContain("找回记忆");
   expect(brief.brief.data.audience).toContain("人物推理");
-  await page.getByRole("button", { name: "全书规划", exact: true }).click();
+  await openBookSection(page, "全书规划");
   await expect(page.locator(".book-foundation")).toContainText("找回记忆");
   await page.getByRole("button", { name: "编辑创作方向", exact: true }).click();
+  await page.getByRole("button", { name: "和 AI 讨论", exact: true }).click();
   await page
     .getByLabel("给创作伙伴的消息")
     .fill("帮我规划这本书的主线，并提出可采用的全书方案");
@@ -74,12 +76,13 @@ test("an author plans a book before creating chapters and keeps writing when ret
     fullPage: true,
   });
   await page.reload();
+  await page.getByRole("button", { name: "和 AI 讨论", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "已采用全书方案", exact: true }),
   ).toBeDisabled();
   const after = await (await page.request.get(`/api/projects/${pid}`)).json();
   expect(after.chapters).toHaveLength(0);
-  await page.getByRole("button", { name: "人物", exact: true }).click();
+  await openBookSection(page, "人物");
   await page.getByRole("button", { name: "添加人物", exact: true }).click();
   await page.getByLabel("名称", { exact: true }).fill("林川");
   await page
@@ -87,7 +90,7 @@ test("an author plans a book before creating chapters and keeps writing when ret
     .fill("失忆的制印师，渴望查清过去，却害怕伤害养父。");
   await page.getByRole("button", { name: "保存设定", exact: true }).click();
   await expect(page.locator(".book-settings-grid")).toContainText("林川");
-  await page.getByRole("button", { name: "世界与规则", exact: true }).click();
+  await openBookSection(page, "世界与规则");
   await page.getByRole("button", { name: "添加世界设定", exact: true }).click();
   await page.getByLabel("名称", { exact: true }).fill("记忆铜印");
   await page
@@ -119,13 +122,13 @@ test("an author plans a book before creating chapters and keeps writing when ret
   const editor = page.getByTestId("chapter-editor");
   await expect(editor).toBeVisible();
   await editor.fill("林川握住铜印，一段本不属于今天的雨声忽然响起。");
-  await page.getByRole("button", { name: "作品规划", exact: true }).click();
+  await page.getByRole("button", { name: "作品概览", exact: true }).click();
   await expect(editor).toHaveCount(0);
   await page.getByRole("button", { name: "继续写作", exact: true }).click();
   await expect(editor).toContainText("本不属于今天的雨声");
   await page.reload();
   await expect(editor).toContainText("本不属于今天的雨声");
-  await page.getByRole("button", { name: "书房", exact: true }).click();
+  await page.getByRole("button", { name: "返回我的书房", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "每个念头，都值得一本书。" }),
   ).toBeVisible();
@@ -166,7 +169,7 @@ test("AI provider settings discover models and keep the API key write only", asy
   const headers = { Origin: origin, "X-CSRF-Token": session.csrfToken };
   try {
     await page.goto("/");
-    await page.getByRole("button", { name: "AI 供应商", exact: true }).click();
+    await openWorkspaceAction(page, "AI 供应商");
     const dialog = page.getByRole("dialog", { name: "AI 供应商设置" });
     await dialog
       .getByRole("button", { name: "添加 AI 供应商", exact: true })

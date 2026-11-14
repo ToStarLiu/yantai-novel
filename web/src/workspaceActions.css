@@ -1,0 +1,84 @@
+.workspace-actions {
+  position: relative;
+  flex: none;
+}
+.workspace-actions-trigger {
+  gap: 6px;
+}
+.workspace-actions-panel {
+  position: absolute;
+  z-index: 90;
+  right: 0;
+  top: calc(100% + 10px);
+  width: min(276px, calc(100vw - 24px));
+  max-height: calc(100dvh - 80px);
+  overflow-y: auto;
+  padding: 10px;
+  border: 1px solid #dbe3d5;
+  border-radius: 10px;
+  background: #fcfdf9;
+  box-shadow: 0 12px 38px #253a2425;
+}
+.workspace-actions-panel > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 6px 8px;
+  gap: 10px;
+  color: #455a43;
+}
+.workspace-actions-panel > header strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+.workspace-action-group {
+  margin: 9px 8px 4px;
+  color: #89957f;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+.workspace-action-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  text-align: left;
+  color: #53684b;
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.workspace-action-item:hover,
+.workspace-action-item:focus-visible {
+  color: #314f35;
+  background: #edf2e7;
+}
+.workspace-action-item:disabled {
+  opacity: 0.45;
+}
+.workspace-action-item svg {
+  flex: none;
+}
+.workspace-app .top-actions .workspace-actions-trigger {
+  min-height: 30px;
+}
+@media (max-width: 760px) {
+  .workspace-actions-trigger {
+    padding: 6px 9px;
+  }
+  .workspace-actions-panel {
+    top: calc(100% + 8px);
+    max-height: calc(100dvh - 74px);
+  }
+  .workspace-action-item {
+    min-height: 41px;
+  }
+}
+
+/* Keep the open action panel above mobile drawers and below application dialogs. */
+.app > .topbar:has(.workspace-actions-panel) {
+  z-index: 70;
+}

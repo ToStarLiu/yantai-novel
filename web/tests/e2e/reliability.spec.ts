@@ -1,4 +1,5 @@
 import { authenticate } from "./auth";
+import { openWorkspaceAction } from "./navigation";
 import { test, expect } from "@playwright/test";
 const doc = (text: string) => ({
   type: "doc",
@@ -105,7 +106,7 @@ test("text import previews chapters and full project export restores as a new pr
   page,
 }) => {
   const { project } = await seed(page);
-  await page.getByRole("button", { name: "导入作品" }).click();
+  await openWorkspaceAction(page, "导入作品");
   await page
     .getByPlaceholder("也可以直接粘贴已有正文…")
     .fill(
@@ -122,7 +123,7 @@ test("text import previews chapters and full project export restores as a new pr
   const exportJSON = await (
     await page.request.get(`/api/projects/${project.id}/export`)
   ).json();
-  await page.getByRole("button", { name: "导入作品" }).click();
+  await openWorkspaceAction(page, "导入作品");
   const importedResponse = page.waitForResponse(
     (r) => r.url().endsWith("/api/import") && r.request().method() === "POST",
   );
@@ -206,7 +207,7 @@ test("volume editing, readable export and explicit project deletion work", async
   page.once("dialog", (d) => d.accept("第二卷 归途"));
   await page.getByRole("button", { name: "编辑卷名" }).click();
   await expect(page.getByRole("status")).toContainText("卷名已保存");
-  await page.getByRole("button", { name: "作品设置" }).click();
+  await openWorkspaceAction(page, "作品设置");
   let download = page.waitForEvent("download");
   await page.getByRole("button", { name: "Markdown", exact: true }).click();
   expect((await download).suggestedFilename()).toMatch(/\.md$/);

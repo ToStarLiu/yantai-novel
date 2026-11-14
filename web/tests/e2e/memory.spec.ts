@@ -1,4 +1,5 @@
 import { authenticate } from "./auth";
+import { openChapterMaterial } from "./navigation";
 import { test, expect } from "@playwright/test";
 test("nonempty memory is edited, confirmed, cited and invalidated after an old chapter changes", async ({
   page,
@@ -80,7 +81,7 @@ test("nonempty memory is edited, confirmed, cited and invalidated after an old c
   await expect(page.getByTestId("chapter-editor")).toContainText(
     "林川的左臂受伤",
   );
-  await page.getByRole("button", { name: "故事记忆", exact: true }).click();
+  await openChapterMaterial(page, "故事记忆");
   await page.getByLabel("选择记忆提案").selectOption(proposal.id);
   const changes = page.locator(".memory-change");
   await expect(changes).toHaveCount(2);
@@ -115,7 +116,7 @@ test("nonempty memory is edited, confirmed, cited and invalidated after an old c
   });
   await page.reload();
   await page.getByRole("button", { name: "02 第二章 启程" }).click();
-  await page.getByRole("button", { name: "历史检索", exact: true }).click();
+  await openChapterMaterial(page, "历史检索");
   await page.getByLabel("搜索故事历史").fill("左臂");
   await page.getByRole("button", { name: "执行历史检索" }).click();
   await expect(page.locator(".citation-card").first()).toContainText("左臂");
@@ -135,7 +136,7 @@ test("nonempty memory is edited, confirmed, cited and invalidated after an old c
   await expect(
     page.getByText("记忆待重建", { exact: true }).first(),
   ).toBeVisible();
-  await page.getByRole("button", { name: "故事记忆", exact: true }).click();
+  await openChapterMaterial(page, "故事记忆");
   await expect(page.getByText(/旧稿发生了变化/)).toBeVisible();
   await page.getByRole("button", { name: "改稿影响记录" }).click();
   await expect(page.getByRole("dialog")).toContainText("相关状态需要重建");

@@ -1,4 +1,5 @@
 import { authenticate } from "./auth";
+import { openWorkspaceAction } from "./navigation";
 import { test, expect, type Page } from "@playwright/test";
 import { createServer, type Server } from "node:http";
 
@@ -43,7 +44,7 @@ async function setup(page: Page) {
   return { headers, post, project, chapter, revision };
 }
 async function studio(page: Page, label: string) {
-  await page.getByRole("button", { name: "创作工作室", exact: true }).click();
+  await openWorkspaceAction(page, "创作工作室");
   await page.getByRole("button", { name: label, exact: false }).click();
 }
 test("canvas-specific scene proposals, causal explanation, hook reports and voice adoption remain explicit", async ({
@@ -281,7 +282,7 @@ test("invitation joins an isolated viewer with real permission enforcement and s
       );
     })
     .toBe(true);
-  await p.getByRole("button", { name: "创作工作室", exact: true }).click();
+  await openWorkspaceAction(p, "创作工作室");
   await p.getByRole("button", { name: "协作与权限", exact: false }).click();
   await expect(p.getByText("你的权限：只读者")).toBeVisible();
   await expect(

@@ -1,4 +1,5 @@
 import { authenticate } from "./auth";
+import { openWorkspaceAction } from "./navigation";
 import { test, expect } from "@playwright/test";
 async function setup(page: import("@playwright/test").Page) {
   const origin = process.env.E2E_BASE_URL || "http://127.0.0.1:8089";
@@ -51,7 +52,7 @@ async function setup(page: import("@playwright/test").Page) {
   });
   await page.goto(`/#write/${project.id}/${chapter.id}`);
   await expect(page.getByTestId("chapter-editor")).toBeVisible();
-  await page.getByRole("button", { name: "创作工作室", exact: true }).click();
+  await openWorkspaceAction(page, "创作工作室");
   await expect(page.getByRole("dialog", { name: "创作工作室" })).toBeVisible();
   return { headers, post, project, chapter, character, revision };
 }

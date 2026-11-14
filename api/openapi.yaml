@@ -15819,6 +15819,11 @@
           },
           "volume": {
             "type": "string"
+          },
+          "hasText": {
+            "type": "boolean",
+            "readOnly": true,
+            "description": "当前版本正文去除 Unicode 空白后是否非空。作品详情始终提供此摘要字段，不返回章节正文；单章读取和新建章节也提供，其他未计算的响应可省略。"
           }
         },
         "required": [

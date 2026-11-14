@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Sparkles,
   AlignLeft,
+  BookOpen,
   Users,
   Brain,
   Search,
@@ -72,6 +73,7 @@ import "./workspaceAssistant.css";
 type Props = {
   hidden?: boolean;
   composeRequest?: { id: number; text: string };
+  initialTabRequest?: { id: number; tab: Tab };
   chapter: Chapter;
   detail: Detail;
   currentRevisionId: string;
@@ -86,15 +88,23 @@ type Props = {
 };
 type Tab =
   "assistant" | "blueprint" | "settings" | "memory" | "search" | "runs";
-const tabs: { id: Tab; title: string; label: string; Icon: typeof Sparkles }[] =
-  [
-    { id: "assistant", title: "灵感助手", label: "对话", Icon: Sparkles },
-    { id: "blueprint", title: "本章章纲", label: "章纲", Icon: AlignLeft },
-    { id: "settings", title: "人物设定", label: "设定", Icon: Users },
-    { id: "memory", title: "故事记忆", label: "记忆", Icon: Brain },
-    { id: "search", title: "历史检索", label: "检索", Icon: Search },
-    { id: "runs", title: "任务记录", label: "任务", Icon: Activity },
-  ];
+type ContextTab = Exclude<Tab, "assistant" | "runs">;
+const materialTabs: {
+  id: ContextTab;
+  title: string;
+  label: string;
+  Icon: typeof Sparkles;
+}[] = [
+  { id: "blueprint", title: "本章章纲", label: "章纲", Icon: AlignLeft },
+  { id: "settings", title: "人物设定", label: "人物与设定", Icon: Users },
+  { id: "memory", title: "故事记忆", label: "故事记忆", Icon: Brain },
+  { id: "search", title: "历史检索", label: "检索", Icon: Search },
+];
+const primaryTabs = [
+  { id: "assistant", title: "灵感助手", label: "对话", Icon: Sparkles },
+  { id: "materials", title: "本章资料", label: "本章资料", Icon: BookOpen },
+  { id: "runs", title: "任务记录", label: "记录", Icon: Activity },
+] as const;
 const taskName: Record<string, string> = {
   draft: "章节起草",
   review: "一致性审稿",
@@ -108,6 +118,18 @@ const taskName: Record<string, string> = {
 export default function Assistant(props: Props) {
   const { chapter, detail, notify } = props;
   const [tab, setTab] = useState<Tab>("assistant");
+  const [lastMaterialTab, setLastMaterialTab] =
+    useState<ContextTab>("blueprint");
+  const showingMaterials = tab !== "assistant" && tab !== "runs";
+  const primaryTab = showingMaterials ? "materials" : tab;
+  useEffect(() => {
+    if (tab !== "assistant" && tab !== "runs") setLastMaterialTab(tab);
+  }, [tab]);
+  useEffect(() => {
+    if (!props.initialTabRequest) return;
+    setTab(props.initialTabRequest.tab);
+    if (props.initialTabRequest.tab === "assistant") setToolsOpen(false);
+  }, [props.initialTabRequest?.id]);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [candidateRequest, setCandidateRequest] = useState<{
     id: number;
@@ -139,14 +161,16 @@ export default function Assistant(props: Props) {
   const memoryContext = useQuery({
     queryKey: ["state", detail.project.id],
     queryFn: () => api<StateView>(`/projects/${detail.project.id}/state`),
-    enabled: contextOpen,
-    refetchInterval: contextOpen ? 4000 : false,
+    enabled: showingMaterials && contextOpen && !props.hidden,
+    refetchInterval:
+      showingMaterials && contextOpen && !props.hidden ? 4000 : false,
   });
   const writingSkills = useQuery({
     queryKey: ["writing-skills", detail.project.id],
     queryFn: () =>
       api<WritingSkillList>(`/projects/${detail.project.id}/writing-skills`),
     staleTime: 5000,
+    enabled: showingMaterials && contextOpen,
   });
   const enabledSkills = writingSkills.data?.items.filter(
     (skill) =>
@@ -281,87 +305,41 @@ export default function Assistant(props: Props) {
         </button>
       </div>
       <nav className="assistant-tabs" aria-label="创作伙伴工具">
-        {tabs.map(({ id, title, label, Icon }) => (
+        {primaryTabs.map(({ id, title, label, Icon }) => (
           <button
             key={id}
-            className={tab === id ? "active" : ""}
+            className={primaryTab === id ? "active" : ""}
             onClick={() => {
-              setTab(id);
+              setTab(id === "materials" ? lastMaterialTab : id);
               if (id === "assistant") setToolsOpen(false);
             }}
             title={title}
             aria-label={title}
-            aria-pressed={tab === id}
+            aria-pressed={primaryTab === id}
           >
             <Icon size={14} />
             <span>{label}</span>
           </button>
         ))}
       </nav>
-      <details
-        className="assistant-source-summary"
-        open={contextOpen}
-        onToggle={(event) => setContextOpen(event.currentTarget.open)}
-      >
-        <summary>
-          <Brain size={13} />
-          <span>
-            本章资料 <small title={chapter.title}>{chapter.title}</small>
-          </span>
-          <ChevronDown size={13} />
-        </summary>
-        <div className="assistant-source-grid">
-          <button onClick={() => setTab("blueprint")} aria-label="查看本章章纲">
-            <AlignLeft size={15} />
-            <span>
-              本章章纲
-              <strong>{chapter.blueprint.trim() ? "已准备" : "待补充"}</strong>
-            </span>
-            <ChevronRight size={12} />
-          </button>
-          <button
-            onClick={() => setTab("settings")}
-            aria-label="查看本书人物与设定"
-          >
-            <Users size={15} />
-            <span>
-              人物与设定<strong>{detail.settings.length} 项</strong>
-            </span>
-            <ChevronRight size={12} />
-          </button>
-          <button
-            onClick={() => setTab("memory")}
-            aria-label="查看已确认故事记忆"
-          >
-            <Brain size={15} />
-            <span>
-              全书确认记忆
-              <strong>
-                {memoryContext.data
-                  ? `${memoryContext.data.facts?.length || 0} 条`
-                  : memoryContext.isError
-                    ? "读取失败"
-                    : "读取中…"}
-              </strong>
-            </span>
-            <ChevronRight size={12} />
-          </button>
-          <div>
-            <Sparkles size={15} />
-            <span>
-              对话写作指南
-              <strong>
-                {enabledSkills
-                  ? `${enabledSkills.length} 项启用`
-                  : writingSkills.isError
-                    ? "读取失败"
-                    : "读取中…"}
-              </strong>
-            </span>
-          </div>
-        </div>
-        <p>这是可查阅资料的概览。对话按需读取，记忆仍受章节与人物视角限制。</p>
-      </details>
+      {showingMaterials && (
+        <nav className="assistant-material-tabs" aria-label="本章资料分类">
+          {materialTabs.map(({ id, title, label, Icon }) => (
+            <button
+              key={id}
+              className={tab === id ? "active" : ""}
+              onClick={() => setTab(id)}
+              title={title}
+              aria-label={title}
+              aria-pressed={tab === id}
+            >
+              <Icon size={13} />
+              {label}
+            </button>
+          ))}
+        </nav>
+      )}
+
       <div
         className={
           "assistant-content " +
@@ -370,6 +348,80 @@ export default function Assistant(props: Props) {
             : "")
         }
       >
+        {showingMaterials && (
+          <details
+            className="assistant-source-summary"
+            open={contextOpen}
+            onToggle={(event) => setContextOpen(event.currentTarget.open)}
+          >
+            <summary>
+              <Brain size={13} />
+              <span>
+                可用资料概况{" "}
+                <small title={chapter.title}>{chapter.title}</small>
+              </span>
+              <ChevronDown size={13} />
+            </summary>
+            <div className="assistant-source-grid">
+              <button
+                onClick={() => setTab("blueprint")}
+                aria-label="查看本章章纲"
+              >
+                <AlignLeft size={15} />
+                <span>
+                  本章章纲
+                  <strong>
+                    {chapter.blueprint.trim() ? "已准备" : "待补充"}
+                  </strong>
+                </span>
+                <ChevronRight size={12} />
+              </button>
+              <button
+                onClick={() => setTab("settings")}
+                aria-label="查看本书人物与设定"
+              >
+                <Users size={15} />
+                <span>
+                  人物与设定<strong>{detail.settings.length} 项</strong>
+                </span>
+                <ChevronRight size={12} />
+              </button>
+              <button
+                onClick={() => setTab("memory")}
+                aria-label="查看已确认故事记忆"
+              >
+                <Brain size={15} />
+                <span>
+                  全书确认记忆
+                  <strong>
+                    {memoryContext.data
+                      ? `${memoryContext.data.facts?.length || 0} 条`
+                      : memoryContext.isError
+                        ? "读取失败"
+                        : "读取中…"}
+                  </strong>
+                </span>
+                <ChevronRight size={12} />
+              </button>
+              <div>
+                <Sparkles size={15} />
+                <span>
+                  对话写作指南
+                  <strong>
+                    {enabledSkills
+                      ? `${enabledSkills.length} 项启用`
+                      : writingSkills.isError
+                        ? "读取失败"
+                        : "读取中…"}
+                  </strong>
+                </span>
+              </div>
+            </div>
+            <p>
+              这是可查阅资料的概览。对话按需读取，记忆仍受章节与人物视角限制。
+            </p>
+          </details>
+        )}
         <div className="assistant-chat-panel" hidden={tab !== "assistant"}>
           <div className="assistant-conversation" hidden={toolsOpen}>
             <Copilot
@@ -394,24 +446,13 @@ export default function Assistant(props: Props) {
                 }
               }}
             >
-              <Sparkles size={14} /> 写作工具{" "}
-              <span>起草 · 审稿 · 选段修订</span>
+              <Sparkles size={14} /> 写作工具 <span>起草 · 审稿 · 改写</span>
               {toolsOpen && <strong>返回对话</strong>}
             </summary>
             <div className="copilot-writing-tools-body">
-              <div className="assistant-intro">
-                <span className="eyebrow">WRITE WITH INTENTION</span>
-                <h3>下一句，往哪里走？</h3>
-                <p>以你的章纲为方向，让人物、情节与设定保持连贯。</p>
-              </div>
-              <div className="context-strip">
-                <Brain size={14} />
-                <span>
-                  {statusLabel[detail.project.health] || detail.project.health}
-                </span>
-                <span className="context-count">
-                  {detail.settings.length} 项设定
-                </span>
+              <div className="assistant-intro assistant-single-task-intro">
+                <h3>完成一项写作任务</h3>
+                <p>结果先作为候选，你可以比较修改，或带回对话继续打磨。</p>
               </div>
               <label className="instruction-field">
                 这次想怎样推进？

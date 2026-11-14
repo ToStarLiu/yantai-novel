@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { authenticate } from "./auth";
+import { openChapterMaterial, openWorkspaceAction } from "./navigation";
 const origin = process.env.E2E_BASE_URL || "http://127.0.0.1:8089";
 const privatePhrase =
   "PRIVATE-TASK-VOICE: 用简短动作承载情绪，不在段尾重复解释。";
@@ -175,17 +176,17 @@ test("single writing tasks disclose private preferences, honor opt-out and keep 
   const evidence = await inspect(page, review);
   await expect(evidence).toContainText("不加载作者偏好");
   await expect(evidence).not.toContainText(privatePhrase);
-  await page.getByRole("button", { name: "故事记忆", exact: true }).click();
+  await openChapterMaterial(page, "故事记忆");
   await expect(page.locator(".task-memory-exclusion")).toContainText(
     "事实提取不会加载作者偏好",
   );
-  await page.getByRole("button", { name: "本章章纲", exact: true }).click();
+  await openChapterMaterial(page, "本章章纲");
   const planning = page.getByLabel("章纲规划：使用作者记忆", { exact: true });
   await expect(planning).not.toBeChecked();
   await planning.check();
   await page.getByRole("button", { name: "规划建议", exact: true }).click();
   const plan = await latest(page, project.id, "planning");
-  await page.getByRole("button", { name: "本章章纲", exact: true }).click();
+  await openChapterMaterial(page, "本章章纲");
   await expandUsage(
     page.locator(".task-memory-usage").filter({ visible: true }).first(),
   );
@@ -231,7 +232,7 @@ test("production and candidate generation preserve the chosen author memory sett
   });
   expect(flowResponse.ok(), await flowResponse.text()).toBeTruthy();
   const flow = await flowResponse.json();
-  await page.getByRole("button", { name: "创作工作室", exact: true }).click();
+  await openWorkspaceAction(page, "创作工作室");
   await page.getByRole("button", { name: "批量制作", exact: false }).click();
   await page
     .getByRole("combobox", { name: "制作流程", exact: true })
