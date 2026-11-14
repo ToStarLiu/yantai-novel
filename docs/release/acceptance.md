@@ -237,3 +237,16 @@ Windows便携包0.4.0/schema21实际启动，UI导入原创指南，经包内Pi�
 - 主实例8088实际Chrome只读冒烟通过：概览3入口、全书讨论默认收起、写作导航4入口、助手3入口，无页面异常。原有1部作品、3章、8个正文版本及版本内容摘要与更新前一致；测试仍使用独立数据库与演示模型，没有新增付费模型请求。
 
 截图来自隔离测试库的实际浏览器：[作品概览](screenshots/simplified-book-desktop.png)、[手机概览](screenshots/simplified-book-mobile.png)、[简化工作台](screenshots/simplified-workspace-desktop.png)、[手机正文](screenshots/simplified-workspace-mobile.png)。GitHub既有v0.4.0下载包未重新发布。
+
+
+## v0.5.0 发行构建与桌面验证 — 2026-11-15
+
+功能提交已先推送并由PR #2合入主分支，随后更新双语README、下载/使用入口、当前截图、升级说明与GitHub仓库简介。Web、Pi、Desktop及OpenAPI版本统一为0.5.0。
+
+- 功能提交的GitHub Linux CI实际通过 **252项Go顶层测试，0跳过**，包含PostgreSQL与工具循环；前端类型检查、单测和构建通过。此前2026-11-14完整47项Chrome通过的记录保留，未因版本号更新重复声明一次新的浏览器全套。
+- 本轮重新构建Web，**16项前端单测**通过；Pi源码与独立bundle各 **29项**通过。新增桌面边界测试1项，缺少包内API时明确失败，不误连开发8088；该测试已加入CI。
+- 打包脚本直接从当前源码构建Go API，不再复制旧开发exe；Web、Pi与Desktop版本须一致。ASAR仅保留package.json、main.cjs、backend.cjs；build-info.json记录源码提交/树、工作区状态、shell与全部backend资源哈希。独立验证检查必需资源、许可证与私有路径。
+- 实际打包的Electron **0.5.0/schema23** 在独立数据目录首次启动；断言使用独立随机端口的包内API，sandbox/contextIsolation为true、nodeIntegration为false，明确fake Provider。UI完成创建作品、保存作者记忆、导入指南、包内Pi按需读取Skill和私人偏好、全书规划显式采用、章节候选连续打磨、原稿Diff全选采用。重启后作品、正文、记忆和Skills保留，两次退出均确认PostgreSQL停止，无页面异常。回执 .local/desktop-release050.json；[实际桌面截图](screenshots/desktop-v0.5.0.png)。
+- 旧v0.4.0桌面验收数据复制到隔离目录，实际从schema21迁移到schema23，原1部作品与1项写作Skill保留，旧库没有正文版本；新版记忆页面可读取且退出数据库关闭。原旧数据目录未修改。回执 .local/desktop-upgrade050.json，不将该零章节夹具描述为非空正文迁移证明。
+
+最终分发从干净发布源码树重新构建，使用 desktop/verify-package.mjs --require-clean 与 scripts/package-release.py 生成完整ZIP、CRC和SHA-256校验；实际源码树、文件数、体积和摘要以发行资产 release.json / SHA256SUMS.txt 为准。打包与验证未加入个人作品、环境配置、登录信息或供应商主密钥，没有执行收费模型请求。

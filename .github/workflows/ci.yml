@@ -65,6 +65,8 @@ jobs:
         run: |
           npm --prefix harness test
           HARNESS_TEST_ENTRY="$GITHUB_WORKSPACE/harness/bundle/main.mjs" npm --prefix harness test
+      - name: Test desktop startup failure boundary
+        run: node --test desktop/backend.test.cjs
       - name: Make Linux Node available to portable-runtime test fixtures
         # Existing Go fixtures use this Windows portable-runtime pathname.
         # The link runs the Linux Node installed above; it is never committed.
